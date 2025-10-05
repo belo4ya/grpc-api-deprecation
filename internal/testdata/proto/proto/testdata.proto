@@ -1,0 +1,173 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+
+option go_package = "github.com/belo4ya/grpc-api-deprecation/internal/testdata/proto/proto;pb";
+
+message AllInclusive {
+  message NestedRecursive {
+    AllInclusive message = 1;
+    AllInclusive message_deprecated = 2 [deprecated = true];
+  }
+
+  int32 scalar = 1;
+  optional int32 scalar_optional = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  google.protobuf.StringValue string_value = 4;
+  Enum enum = 5;
+  OneOf one_of1 = 6;
+  OneOf one_of2 = 12;
+  Lists lists = 7;
+  Maps maps = 8;
+  Simple message = 9;
+  AllInclusive message_recursive = 10;
+  NestedRecursive message_nested_recursive = 11;
+
+  int32 scalar_deprecated = 101 [deprecated = true];
+  optional int32 scalar_optional_deprecated = 102 [deprecated = true];
+  google.protobuf.Timestamp timestamp_deprecated = 103 [deprecated = true];
+  google.protobuf.StringValue string_value_deprecated = 104 [deprecated = true];
+  Enum enum_deprecated = 105 [deprecated = true];
+  OneOf one_of_deprecated = 106 [deprecated = true];
+  OneOf one_of2_deprecated = 112 [deprecated = true];
+  Lists lists_deprecated = 107 [deprecated = true];
+  Maps maps_deprecated = 108 [deprecated = true];
+  Simple message_deprecated = 109 [deprecated = true];
+  AllInclusive message_recursive_deprecated = 1010 [deprecated = true];
+  NestedRecursive message_nested_recursive_deprecated = 1011 [deprecated = true];
+}
+
+enum Enum {
+  ENUM_UNSPECIFIED = 0;
+  ENUM_VALUE = 1;
+  ENUM_DEPRECATED = 2 [deprecated = true]; // currently not supported
+}
+
+message OneOf {
+  oneof o {
+    int32 scalar = 1;
+    Simple message = 2;
+
+    int32 scalar_deprecated = 11 [deprecated = true];
+    Simple message_deprecated = 12 [deprecated = true];
+  }
+}
+
+message Lists {
+  repeated int32 scalars = 1;
+  repeated Simple messages = 2;
+  repeated Enum enum = 3;
+
+  repeated int32 scalars_deprecated = 11 [deprecated = true];
+  repeated Simple messages_deprecated = 12 [deprecated = true];
+  repeated Enum enum_deprecated = 13 [deprecated = true];
+}
+
+message Maps {
+  map<string, string> scalars = 1;
+  map<string, Simple> messages = 2;
+  map<string, Enum> enums = 3;
+
+  map<string, string> scalars_deprecate = 11 [deprecated = true];
+  map<string, Simple> messages_deprecate = 12 [deprecated = true];
+  map<string, Enum> enums_deprecate = 13 [deprecated = true];
+}
+
+message Simple {
+  int32 field = 1;
+  int32 field_deprecated = 2 [deprecated = true];
+}
+
+message WithoutDeprecated {
+  message Simple {
+    int32 field = 1;
+  }
+  int32 scalar = 1;
+  repeated int32 list = 2;
+  map<string, string> map = 3;
+  Simple message = 4;
+}
+
+message TypesPresence {
+  bool bool = 1 [deprecated = true];
+  float float = 2 [deprecated = true];
+  double double = 3 [deprecated = true];
+  bytes bytes = 4 [deprecated = true];
+  string string = 5 [deprecated = true];
+  int32 int32 = 7 [deprecated = true];
+  int64 int64 = 8 [deprecated = true];
+  sint32 sint32 = 9 [deprecated = true];
+  sint64 sint64 = 10 [deprecated = true];
+  sfixed32 sfixed32 = 11 [deprecated = true];
+  sfixed64 sfixed64 = 12 [deprecated = true];
+  uint32 uint32 = 13 [deprecated = true];
+  uint64 uint64 = 14 [deprecated = true];
+  fixed32 fixed32 = 15 [deprecated = true];
+  fixed64 fixed64 = 16 [deprecated = true];
+  Enum enum = 6 [deprecated = true];
+  OneOf one_of = 17 [deprecated = true];
+  repeated int32 repeated = 18 [deprecated = true];
+  map<string, string> map = 19 [deprecated = true];
+  Simple message = 20 [deprecated = true];
+
+  optional bool bool_optional = 101 [deprecated = true];
+  optional float float_optional = 102 [deprecated = true];
+  optional double double_optional = 103 [deprecated = true];
+  optional bytes bytes_optional = 104 [deprecated = true];
+  optional string string_optional = 105 [deprecated = true];
+  optional int32 int32_optional = 107 [deprecated = true];
+  optional int64 int64_optional = 108 [deprecated = true];
+  optional sint32 sint32_optional = 109 [deprecated = true];
+  optional sint64 sint64_optional = 1010 [deprecated = true];
+  optional sfixed32 sfixed32_optional = 1011 [deprecated = true];
+  optional sfixed64 sfixed64_optional = 1012 [deprecated = true];
+  optional uint32 uint32_optional = 1013 [deprecated = true];
+  optional uint64 uint64_optional = 1014 [deprecated = true];
+  optional fixed32 fixed32_optional = 1015 [deprecated = true];
+  optional fixed64 fixed64_optional = 1016 [deprecated = true];
+  optional Enum enum_optional = 106 [deprecated = true];
+  optional OneOf one_of_optional = 1017 [deprecated = true];
+  optional Simple message_optional = 1020 [deprecated = true];
+
+  google.protobuf.StringValue string_value = 1000 [deprecated = true];
+  google.protobuf.Timestamp timestamp = 1001 [deprecated = true];
+
+  optional google.protobuf.StringValue string_value_optional = 2000 [deprecated = true];
+  optional google.protobuf.Timestamp timestamp_optional = 2001 [deprecated = true];
+}
+
+message HitMaxDepth {
+  message A {
+    X x = 1;
+    B b = 2;
+  }
+  message B {
+    C c = 1;
+  }
+  message C {
+    D d = 1;
+  }
+  message D {
+    E e = 1;
+  }
+  message E {
+    F f = 1;
+  }
+  message F {
+    G g = 1;
+  }
+  message G {
+    H h = 1;
+  }
+  message H {
+    I i = 1;
+  }
+  message I {
+    A a = 1;
+  }
+  message X {
+    int32 scalar = 1 [deprecated = true];
+  }
+  A a = 1;
+}

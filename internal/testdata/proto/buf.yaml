@@ -1,0 +1,9 @@
+version: v2
+modules:
+  - path: proto
+  - path: third_party/googleapis
+lint:
+  use:
+    - STANDARD
+  except:
+    - PACKAGE_DEFINED
