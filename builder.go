@@ -29,7 +29,7 @@ func newPlanBuilder() *planBuilder {
 	return b
 }
 
-func (b *planBuilder) loadOrBuild(md protoreflect.MessageDescriptor) *evalPlan {
+func (b *planBuilder) LoadOrBuild(md protoreflect.MessageDescriptor) *evalPlan {
 	if plan, ok := (*b.cache.Load())[md]; ok {
 		return plan
 	}
