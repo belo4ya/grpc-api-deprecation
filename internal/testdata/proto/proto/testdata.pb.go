@@ -29,7 +29,7 @@ const (
 	Enum_ENUM_UNSPECIFIED Enum = 0
 	Enum_ENUM_VALUE       Enum = 1
 	// Deprecated: Marked as deprecated in testdata.proto.
-	Enum_ENUM_DEPRECATED Enum = 2 // currently not supported
+	Enum_ENUM_DEPRECATED Enum = 2
 )
 
 // Enum value maps for Enum.
@@ -447,15 +447,15 @@ type Lists struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Scalars  []int32                `protobuf:"varint,1,rep,packed,name=scalars,proto3" json:"scalars,omitempty"`
 	Messages []*Simple              `protobuf:"bytes,2,rep,name=messages,proto3" json:"messages,omitempty"`
-	Enum     []Enum                 `protobuf:"varint,3,rep,packed,name=enum,proto3,enum=Enum" json:"enum,omitempty"`
+	Enums    []Enum                 `protobuf:"varint,3,rep,packed,name=enums,proto3,enum=Enum" json:"enums,omitempty"`
 	// Deprecated: Marked as deprecated in testdata.proto.
 	ScalarsDeprecated []int32 `protobuf:"varint,11,rep,packed,name=scalars_deprecated,json=scalarsDeprecated,proto3" json:"scalars_deprecated,omitempty"`
 	// Deprecated: Marked as deprecated in testdata.proto.
 	MessagesDeprecated []*Simple `protobuf:"bytes,12,rep,name=messages_deprecated,json=messagesDeprecated,proto3" json:"messages_deprecated,omitempty"`
 	// Deprecated: Marked as deprecated in testdata.proto.
-	EnumDeprecated []Enum `protobuf:"varint,13,rep,packed,name=enum_deprecated,json=enumDeprecated,proto3,enum=Enum" json:"enum_deprecated,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	EnumsDeprecated []Enum `protobuf:"varint,13,rep,packed,name=enums_deprecated,json=enumsDeprecated,proto3,enum=Enum" json:"enums_deprecated,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Lists) Reset() {
@@ -502,9 +502,9 @@ func (x *Lists) GetMessages() []*Simple {
 	return nil
 }
 
-func (x *Lists) GetEnum() []Enum {
+func (x *Lists) GetEnums() []Enum {
 	if x != nil {
-		return x.Enum
+		return x.Enums
 	}
 	return nil
 }
@@ -526,9 +526,9 @@ func (x *Lists) GetMessagesDeprecated() []*Simple {
 }
 
 // Deprecated: Marked as deprecated in testdata.proto.
-func (x *Lists) GetEnumDeprecated() []Enum {
+func (x *Lists) GetEnumsDeprecated() []Enum {
 	if x != nil {
-		return x.EnumDeprecated
+		return x.EnumsDeprecated
 	}
 	return nil
 }
@@ -1834,14 +1834,14 @@ const file_testdata_proto_rawDesc = "" +
 	"\amessage\x18\x02 \x01(\v2\a.SimpleH\x00R\amessage\x121\n" +
 	"\x11scalar_deprecated\x18\v \x01(\x05B\x02\x18\x01H\x00R\x10scalarDeprecated\x12<\n" +
 	"\x12message_deprecated\x18\f \x01(\v2\a.SimpleB\x02\x18\x01H\x00R\x11messageDeprecatedB\x03\n" +
-	"\x01o\"\x86\x02\n" +
+	"\x01o\"\x8a\x02\n" +
 	"\x05Lists\x12\x18\n" +
 	"\ascalars\x18\x01 \x03(\x05R\ascalars\x12#\n" +
-	"\bmessages\x18\x02 \x03(\v2\a.SimpleR\bmessages\x12\x19\n" +
-	"\x04enum\x18\x03 \x03(\x0e2\x05.EnumR\x04enum\x121\n" +
+	"\bmessages\x18\x02 \x03(\v2\a.SimpleR\bmessages\x12\x1b\n" +
+	"\x05enums\x18\x03 \x03(\x0e2\x05.EnumR\x05enums\x121\n" +
 	"\x12scalars_deprecated\x18\v \x03(\x05B\x02\x18\x01R\x11scalarsDeprecated\x12<\n" +
-	"\x13messages_deprecated\x18\f \x03(\v2\a.SimpleB\x02\x18\x01R\x12messagesDeprecated\x122\n" +
-	"\x0fenum_deprecated\x18\r \x03(\x0e2\x05.EnumB\x02\x18\x01R\x0eenumDeprecated\"\x95\x06\n" +
+	"\x13messages_deprecated\x18\f \x03(\v2\a.SimpleB\x02\x18\x01R\x12messagesDeprecated\x124\n" +
+	"\x10enums_deprecated\x18\r \x03(\x0e2\x05.EnumB\x02\x18\x01R\x0fenumsDeprecated\"\x95\x06\n" +
 	"\x04Maps\x12,\n" +
 	"\ascalars\x18\x01 \x03(\v2\x12.Maps.ScalarsEntryR\ascalars\x12/\n" +
 	"\bmessages\x18\x02 \x03(\v2\x13.Maps.MessagesEntryR\bmessages\x12&\n" +
@@ -2049,9 +2049,9 @@ var file_testdata_proto_depIdxs = []int32{
 	5,  // 20: OneOf.message:type_name -> Simple
 	5,  // 21: OneOf.message_deprecated:type_name -> Simple
 	5,  // 22: Lists.messages:type_name -> Simple
-	0,  // 23: Lists.enum:type_name -> Enum
+	0,  // 23: Lists.enums:type_name -> Enum
 	5,  // 24: Lists.messages_deprecated:type_name -> Simple
-	0,  // 25: Lists.enum_deprecated:type_name -> Enum
+	0,  // 25: Lists.enums_deprecated:type_name -> Enum
 	10, // 26: Maps.scalars:type_name -> Maps.ScalarsEntry
 	11, // 27: Maps.messages:type_name -> Maps.MessagesEntry
 	12, // 28: Maps.enums:type_name -> Maps.EnumsEntry

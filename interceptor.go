@@ -2,7 +2,6 @@ package apideprecation
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors"
@@ -12,7 +11,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-//nolint:exhaustruct
 var (
 	deprecatedFieldUsed = promauto.NewCounterVec(
 		prometheus.CounterOpts{
@@ -48,17 +46,13 @@ type reporter struct {
 }
 
 func (r reporter) Report(_ context.Context, req proto.Message, service, method string) {
-	var projectID, userID string
-
 	msg := req.ProtoReflect()
 	plan := r.builder.loadOrBuild(msg.Descriptor())
 	plan.EvalMessage(msg, service, method,
 		func(fieldFullName, fieldPresence string) {
-			deprecatedFieldUsed.WithLabelValues(service, method, fieldFullName, fieldPresence, projectID, userID).Inc()
+			deprecatedFieldUsed.WithLabelValues(service, method, fieldFullName, fieldPresence, "", "").Inc()
 		},
 		func(fieldFullName, enumValue string, enumNumber int) {
-			fmt.Println(fieldFullName, enumValue, enumNumber)
-			deprecatedEnumUsed.WithLabelValues(service, method, fieldFullName, enumValue, strconv.Itoa(enumNumber), projectID, userID).Inc()
-		},
-	)
+			deprecatedEnumUsed.WithLabelValues(service, method, fieldFullName, enumValue, strconv.Itoa(enumNumber), "", "").Inc()
+		})
 }

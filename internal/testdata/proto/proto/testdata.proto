@@ -41,7 +41,7 @@ message AllInclusive {
 enum Enum {
   ENUM_UNSPECIFIED = 0;
   ENUM_VALUE = 1;
-  ENUM_DEPRECATED = 2 [deprecated = true]; // currently not supported
+  ENUM_DEPRECATED = 2 [deprecated = true];
 }
 
 message OneOf {
@@ -57,11 +57,11 @@ message OneOf {
 message Lists {
   repeated int32 scalars = 1;
   repeated Simple messages = 2;
-  repeated Enum enum = 3;
+  repeated Enum enums = 3;
 
   repeated int32 scalars_deprecated = 11 [deprecated = true];
   repeated Simple messages_deprecated = 12 [deprecated = true];
-  repeated Enum enum_deprecated = 13 [deprecated = true];
+  repeated Enum enums_deprecated = 13 [deprecated = true];
 }
 
 message Maps {

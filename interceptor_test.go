@@ -22,19 +22,29 @@ import (
 func TestUnaryServerInterceptor(t *testing.T) {
 	ctx := context.Background()
 
+	type fieldMetric struct {
+		val                                float64
+		field, presence, projectID, userID string
+	}
+	type enumMetric struct {
+		val                                     float64
+		field, value, number, projectID, userID string
+	}
+
 	type args struct {
 		ctx   context.Context
 		req   any
 		calls int
 	}
 	type want struct {
-		val                                float64
-		field, presence, projectID, userID string
+		fields []fieldMetric
+		enums  []enumMetric
 	}
+
 	tests := []struct {
 		name string
 		args args
-		want []want
+		want want
 	}{
 		{
 			name: "deprecated not populated",
@@ -48,7 +58,7 @@ func TestUnaryServerInterceptor(t *testing.T) {
 				},
 				calls: 1,
 			},
-			want: nil,
+			want: want{},
 		},
 		{
 			name: "deprecated fields 1",
@@ -60,12 +70,10 @@ func TestUnaryServerInterceptor(t *testing.T) {
 				},
 				calls: 1,
 			},
-			want: []want{
-				{
-					val:   1,
-					field: "scalar_optional_deprecated", presence: "explicit", projectID: "", userID: "",
-				},
-			},
+			want: want{fields: []fieldMetric{{
+				val:   1,
+				field: "scalar_optional_deprecated", presence: "explicit", projectID: "", userID: "",
+			}}},
 		},
 		{
 			name: "deprecated fields 2",
@@ -79,24 +87,65 @@ func TestUnaryServerInterceptor(t *testing.T) {
 				},
 				calls: 1,
 			},
-			want: []want{
-				{
-					val:   1,
-					field: "scalar_deprecated", presence: "implicit", projectID: "", userID: "",
+			want: want{fields: []fieldMetric{{
+				val:   1,
+				field: "scalar_deprecated", presence: "implicit", projectID: "", userID: "",
+			}, {
+				val:   1,
+				field: "message.field_deprecated", presence: "implicit", projectID: "", userID: "",
+			}, {
+				val:   1,
+				field: "maps.scalars_deprecate", presence: "implicit", projectID: "", userID: "",
+			}, {
+				val:   1,
+				field: "lists.messages[].field_deprecated", presence: "implicit", projectID: "", userID: "",
+			}}},
+		},
+		{
+			name: "deprecated enums",
+			args: args{
+				ctx: ctx,
+				req: &pb.AllInclusive{
+					Enum: pb.Enum_ENUM_DEPRECATED,
+					Lists: &pb.Lists{
+						Enums: []pb.Enum{pb.Enum_ENUM_VALUE, pb.Enum_ENUM_DEPRECATED},
+					},
+					Maps: &pb.Maps{
+						Enums: map[string]pb.Enum{"a": pb.Enum_ENUM_VALUE, "b": pb.Enum_ENUM_DEPRECATED},
+					},
 				},
-				{
-					val:   1,
-					field: "message.field_deprecated", presence: "implicit", projectID: "", userID: "",
-				},
-				{
-					val:   1,
-					field: "maps.scalars_deprecate", presence: "implicit", projectID: "", userID: "",
-				},
-				{
-					val:   1,
-					field: "lists.messages[].field_deprecated", presence: "implicit", projectID: "", userID: "",
-				},
+				calls: 1,
 			},
+			want: want{enums: []enumMetric{{
+				val:   1,
+				field: "enum", value: "ENUM_DEPRECATED", number: "2", projectID: "", userID: "",
+			}, {
+				val:   1,
+				field: "lists.enums", value: "ENUM_DEPRECATED", number: "2", projectID: "", userID: "",
+			}, {
+				val:   1,
+				field: "maps.enums", value: "ENUM_DEPRECATED", number: "2", projectID: "", userID: "",
+			}}},
+		},
+		{
+			name: "deprecated fields & enums",
+			args: args{
+				ctx: ctx,
+				req: &pb.AllInclusive{
+					Scalar:           1,
+					ScalarDeprecated: 1,
+					Enum:             pb.Enum_ENUM_DEPRECATED,
+					Maps:             &pb.Maps{Scalars: map[string]string{"a": "b"}},
+				},
+				calls: 1,
+			},
+			want: want{fields: []fieldMetric{{
+				val:   1,
+				field: "scalar_deprecated", presence: "implicit", projectID: "", userID: "",
+			}}, enums: []enumMetric{{
+				val:   1,
+				field: "enum", value: "ENUM_DEPRECATED", number: "2", projectID: "", userID: "",
+			}}},
 		},
 		{
 			name: "no initiator",
@@ -105,38 +154,38 @@ func TestUnaryServerInterceptor(t *testing.T) {
 				req:   &pb.AllInclusive{ScalarDeprecated: 1},
 				calls: 1,
 			},
-			want: []want{
-				{
-					val:   1,
-					field: "scalar_deprecated", presence: "implicit", projectID: "", userID: "",
-				},
-			},
+			want: want{fields: []fieldMetric{{
+				val:   1,
+				field: "scalar_deprecated", presence: "implicit", projectID: "", userID: "",
+			}}},
 		},
 		{
-			name: "multiple calls with deprecated fields & cache hit",
+			name: "multiple calls with deprecated fields, enums & cache hit",
 			args: args{
 				ctx: ctx,
 				req: &pb.AllInclusive{
 					ScalarDeprecated:         1,
 					ScalarOptionalDeprecated: lo.ToPtr[int32](1),
+					Enum:                     pb.Enum_ENUM_DEPRECATED,
 				},
 				calls: 3,
 			},
-			want: []want{
-				{
-					val:   3,
-					field: "scalar_deprecated", presence: "implicit", projectID: "", userID: "",
-				},
-				{
-					val:   3,
-					field: "scalar_optional_deprecated", presence: "explicit", projectID: "", userID: "",
-				},
-			},
+			want: want{fields: []fieldMetric{{
+				val:   3,
+				field: "scalar_deprecated", presence: "implicit", projectID: "", userID: "",
+			}, {
+				val:   3,
+				field: "scalar_optional_deprecated", presence: "explicit", projectID: "", userID: "",
+			}}, enums: []enumMetric{{
+				val:   3,
+				field: "enum", value: "ENUM_DEPRECATED", number: "2", projectID: "", userID: "",
+			}}},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			deprecatedFieldUsed.Reset()
+			deprecatedEnumUsed.Reset()
 
 			interceptor := UnaryServerInterceptor()
 			for range tt.args.calls {
@@ -148,16 +197,22 @@ func TestUnaryServerInterceptor(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			assert.Equal(t, len(tt.want), testutil.CollectAndCount(deprecatedFieldUsed), "unexpected number of time series")
-			for _, want := range tt.want {
+			assert.Equal(t, len(tt.want.fields), testutil.CollectAndCount(deprecatedFieldUsed))
+			for _, want := range tt.want.fields {
 				c := deprecatedFieldUsed.WithLabelValues("t.Service", "Method", want.field, want.presence, want.projectID, want.userID)
+				assert.Equal(t, want.val, testutil.ToFloat64(c))
+			}
+
+			assert.Equal(t, len(tt.want.enums), testutil.CollectAndCount(deprecatedEnumUsed))
+			for _, want := range tt.want.enums {
+				c := deprecatedEnumUsed.WithLabelValues("t.Service", "Method", want.field, want.value, want.number, want.projectID, want.userID)
 				assert.Equal(t, want.val, testutil.ToFloat64(c))
 			}
 		})
 	}
 }
 
-func TestUnaryServerInterceptor2(t *testing.T) {
+func TestUnaryServerInterceptor__correctness(t *testing.T) {
 	service := "t.Service"
 	method := "Method"
 	interceptor := func(req any) error {
@@ -170,13 +225,21 @@ func TestUnaryServerInterceptor2(t *testing.T) {
 		return err
 	}
 
-	type want struct {
+	type fieldMetric struct {
 		field, presence string
+	}
+	type enumMetric struct {
+		field, value, number string
+	}
+
+	type want struct {
+		fields []fieldMetric
+		enums  []enumMetric
 	}
 	tests := []struct {
 		name string
 		msg  proto.Message
-		want []want
+		want want
 	}{
 		{
 			name: "all-inclusive",
@@ -199,14 +262,14 @@ func TestUnaryServerInterceptor2(t *testing.T) {
 						{Field: 1, FieldDeprecated: 2},
 						{Field: 1, FieldDeprecated: 0},
 					},
-					Enum:              []pb.Enum{pb.Enum_ENUM_VALUE, pb.Enum_ENUM_DEPRECATED},
+					Enums:             []pb.Enum{pb.Enum_ENUM_VALUE, pb.Enum_ENUM_DEPRECATED},
 					ScalarsDeprecated: []int32{9, 8, 7},
 					MessagesDeprecated: []*pb.Simple{
 						{Field: 2, FieldDeprecated: 0},
 						{Field: 2, FieldDeprecated: 2},
 						{Field: 2, FieldDeprecated: 0},
 					},
-					EnumDeprecated: []pb.Enum{pb.Enum_ENUM_VALUE, pb.Enum_ENUM_DEPRECATED},
+					EnumsDeprecated: []pb.Enum{pb.Enum_ENUM_VALUE, pb.Enum_ENUM_DEPRECATED},
 				},
 				Maps: &pb.Maps{
 					Scalars: map[string]string{"a": "b"},
@@ -272,14 +335,14 @@ func TestUnaryServerInterceptor2(t *testing.T) {
 						{Field: 1, FieldDeprecated: 2},
 						{Field: 1, FieldDeprecated: 0},
 					},
-					Enum:              []pb.Enum{pb.Enum_ENUM_VALUE, pb.Enum_ENUM_DEPRECATED},
+					Enums:             []pb.Enum{pb.Enum_ENUM_VALUE, pb.Enum_ENUM_DEPRECATED},
 					ScalarsDeprecated: []int32{9, 8, 7},
 					MessagesDeprecated: []*pb.Simple{
 						{Field: 2, FieldDeprecated: 0},
 						{Field: 2, FieldDeprecated: 2},
 						{Field: 2, FieldDeprecated: 0},
 					},
-					EnumDeprecated: []pb.Enum{pb.Enum_ENUM_VALUE, pb.Enum_ENUM_DEPRECATED},
+					EnumsDeprecated: []pb.Enum{pb.Enum_ENUM_VALUE, pb.Enum_ENUM_DEPRECATED},
 				},
 				MapsDeprecated: &pb.Maps{
 					Scalars: map[string]string{"a": "b"},
@@ -322,38 +385,44 @@ func TestUnaryServerInterceptor2(t *testing.T) {
 					},
 				},
 			},
-			want: []want{
-				{field: "one_of2.scalar_deprecated", presence: "explicit"},
-				{field: "lists.messages[].field_deprecated", presence: "implicit"},
-				{field: "lists.scalars_deprecated", presence: "implicit"},
-				{field: "lists.messages_deprecated", presence: "implicit"},
-				{field: "lists.enum_deprecated", presence: "implicit"},
-				{field: "maps.messages{}.field_deprecated", presence: "implicit"},
-				{field: "maps.scalars_deprecate", presence: "implicit"},
-				{field: "maps.messages_deprecate", presence: "implicit"},
-				{field: "message.field_deprecated", presence: "implicit"},
-				{field: "message_recursive.message.field_deprecated", presence: "implicit"},
-				{field: "message_recursive.message_deprecated", presence: "explicit"},
-				{field: "message_nested_recursive.message_deprecated", presence: "explicit"},
-				{field: "message_nested_recursive.message.message_recursive.scalar_deprecated", presence: "implicit"},
-				{field: "scalar_deprecated", presence: "implicit"},
-				{field: "scalar_optional_deprecated", presence: "explicit"},
-				{field: "timestamp_deprecated", presence: "explicit"},
-				{field: "string_value_deprecated", presence: "explicit"},
-				{field: "enum_deprecated", presence: "implicit"},
-				{field: "one_of_deprecated", presence: "explicit"},
-				{field: "one_of2_deprecated", presence: "explicit"},
-				{field: "lists_deprecated", presence: "explicit"},
-				{field: "maps_deprecated", presence: "explicit"},
-				{field: "message_deprecated", presence: "explicit"},
-				{field: "message_recursive_deprecated", presence: "explicit"},
-				{field: "message_nested_recursive_deprecated", presence: "explicit"},
+			want: want{
+				fields: []fieldMetric{
+					{field: "one_of2.scalar_deprecated", presence: "explicit"},
+					{field: "lists.messages[].field_deprecated", presence: "implicit"},
+					{field: "lists.scalars_deprecated", presence: "implicit"},
+					{field: "lists.messages_deprecated", presence: "implicit"},
+					{field: "lists.enums_deprecated", presence: "implicit"},
+					{field: "maps.messages{}.field_deprecated", presence: "implicit"},
+					{field: "maps.scalars_deprecate", presence: "implicit"},
+					{field: "maps.messages_deprecate", presence: "implicit"},
+					{field: "message.field_deprecated", presence: "implicit"},
+					{field: "message_recursive.message.field_deprecated", presence: "implicit"},
+					{field: "message_recursive.message_deprecated", presence: "explicit"},
+					{field: "message_nested_recursive.message_deprecated", presence: "explicit"},
+					{field: "message_nested_recursive.message.message_recursive.scalar_deprecated", presence: "implicit"},
+					{field: "scalar_deprecated", presence: "implicit"},
+					{field: "scalar_optional_deprecated", presence: "explicit"},
+					{field: "timestamp_deprecated", presence: "explicit"},
+					{field: "string_value_deprecated", presence: "explicit"},
+					{field: "enum_deprecated", presence: "implicit"},
+					{field: "one_of_deprecated", presence: "explicit"},
+					{field: "one_of2_deprecated", presence: "explicit"},
+					{field: "lists_deprecated", presence: "explicit"},
+					{field: "maps_deprecated", presence: "explicit"},
+					{field: "message_deprecated", presence: "explicit"},
+					{field: "message_recursive_deprecated", presence: "explicit"},
+					{field: "message_nested_recursive_deprecated", presence: "explicit"},
+				},
+				enums: []enumMetric{
+					{field: "enum", value: "ENUM_DEPRECATED", number: "2"},
+					{field: "lists.enums", value: "ENUM_DEPRECATED", number: "2"},
+				},
 			},
 		},
 		{
 			name: "defaults",
 			msg:  &pb.AllInclusive{},
-			want: []want{},
+			want: want{},
 		},
 		{
 			name: "deprecated not populated",
@@ -376,7 +445,7 @@ func TestUnaryServerInterceptor2(t *testing.T) {
 						{Field: 1},
 						{Field: 1},
 					},
-					Enum: []pb.Enum{pb.Enum_ENUM_VALUE, pb.Enum_ENUM_VALUE},
+					Enums: []pb.Enum{pb.Enum_ENUM_VALUE, pb.Enum_ENUM_VALUE},
 				},
 				Maps: &pb.Maps{
 					Scalars: map[string]string{"a": "b"},
@@ -398,7 +467,7 @@ func TestUnaryServerInterceptor2(t *testing.T) {
 					},
 				},
 			},
-			want: []want{},
+			want: want{},
 		},
 		{
 			name: "only deprecated",
@@ -443,19 +512,22 @@ func TestUnaryServerInterceptor2(t *testing.T) {
 					},
 				},
 			},
-			want: []want{
-				{field: "scalar_deprecated", presence: "implicit"},
-				{field: "scalar_optional_deprecated", presence: "explicit"},
-				{field: "timestamp_deprecated", presence: "explicit"},
-				{field: "string_value_deprecated", presence: "explicit"},
-				{field: "enum_deprecated", presence: "implicit"},
-				{field: "one_of_deprecated", presence: "explicit"},
-				{field: "one_of2_deprecated", presence: "explicit"},
-				{field: "lists_deprecated", presence: "explicit"},
-				{field: "maps_deprecated", presence: "explicit"},
-				{field: "message_deprecated", presence: "explicit"},
-				{field: "message_recursive_deprecated", presence: "explicit"},
-				{field: "message_nested_recursive_deprecated", presence: "explicit"},
+			want: want{
+				fields: []fieldMetric{
+					{field: "scalar_deprecated", presence: "implicit"},
+					{field: "scalar_optional_deprecated", presence: "explicit"},
+					{field: "timestamp_deprecated", presence: "explicit"},
+					{field: "string_value_deprecated", presence: "explicit"},
+					{field: "enum_deprecated", presence: "implicit"},
+					{field: "one_of_deprecated", presence: "explicit"},
+					{field: "one_of2_deprecated", presence: "explicit"},
+					{field: "lists_deprecated", presence: "explicit"},
+					{field: "maps_deprecated", presence: "explicit"},
+					{field: "message_deprecated", presence: "explicit"},
+					{field: "message_recursive_deprecated", presence: "explicit"},
+					{field: "message_nested_recursive_deprecated", presence: "explicit"},
+				},
+				enums: []enumMetric{},
 			},
 		},
 		{
@@ -463,18 +535,23 @@ func TestUnaryServerInterceptor2(t *testing.T) {
 			msg: &pb.Lists{
 				Scalars:  []int32{1, 2, 3},
 				Messages: []*pb.Simple{{Field: 1}, {Field: 2}},
-				Enum:     []pb.Enum{pb.Enum_ENUM_VALUE, pb.Enum_ENUM_VALUE},
+				Enums:    []pb.Enum{pb.Enum_ENUM_VALUE, pb.Enum_ENUM_VALUE},
 			},
-			want: []want{},
+			want: want{},
 		},
 		{
 			name: "lists: with deprecated values",
 			msg: &pb.Lists{
 				Messages: []*pb.Simple{{}, {FieldDeprecated: 1}, {Field: 2}},
-				Enum:     []pb.Enum{pb.Enum_ENUM_VALUE, pb.Enum_ENUM_DEPRECATED},
+				Enums:    []pb.Enum{pb.Enum_ENUM_VALUE, pb.Enum_ENUM_DEPRECATED},
 			},
-			want: []want{
-				{field: "messages[].field_deprecated", presence: "implicit"},
+			want: want{
+				fields: []fieldMetric{
+					{field: "messages[].field_deprecated", presence: "implicit"},
+				},
+				enums: []enumMetric{
+					{field: "enums", value: "ENUM_DEPRECATED", number: "2"},
+				},
 			},
 		},
 		{
@@ -485,8 +562,11 @@ func TestUnaryServerInterceptor2(t *testing.T) {
 					"a": {Field: 1},
 					"b": {Field: 2},
 				},
+				Enums: map[string]pb.Enum{
+					"a": pb.Enum_ENUM_VALUE,
+					"b": pb.Enum_ENUM_VALUE,
+				},
 			},
-			want: []want{},
 		},
 		{
 			name: "maps: with deprecated values",
@@ -497,9 +577,18 @@ func TestUnaryServerInterceptor2(t *testing.T) {
 					"b": {FieldDeprecated: 1},
 					"c": {Field: 2},
 				},
+				Enums: map[string]pb.Enum{
+					"a": pb.Enum_ENUM_VALUE,
+					"b": pb.Enum_ENUM_DEPRECATED,
+				},
 			},
-			want: []want{
-				{field: "messages{}.field_deprecated", presence: "implicit"},
+			want: want{
+				fields: []fieldMetric{
+					{field: "messages{}.field_deprecated", presence: "implicit"},
+				},
+				enums: []enumMetric{
+					{field: "enums", value: "ENUM_DEPRECATED", number: "2"},
+				},
 			},
 		},
 		{
@@ -516,9 +605,12 @@ func TestUnaryServerInterceptor2(t *testing.T) {
 					},
 				},
 			},
-			want: []want{
-				{field: "message_recursive.message_recursive.scalar_deprecated", presence: "implicit"},
-				{field: "message_recursive.message_nested_recursive.message.message_deprecated", presence: "explicit"},
+			want: want{
+				fields: []fieldMetric{
+					{field: "message_recursive.message_recursive.scalar_deprecated", presence: "implicit"},
+					{field: "message_recursive.message_nested_recursive.message.message_deprecated", presence: "explicit"},
+				},
+				enums: []enumMetric{},
 			},
 		},
 		{
@@ -535,7 +627,7 @@ func TestUnaryServerInterceptor2(t *testing.T) {
 					},
 				},
 			},
-			want: []want{},
+			want: want{},
 		},
 		{
 			name: "only top-level deprecated",
@@ -545,8 +637,11 @@ func TestUnaryServerInterceptor2(t *testing.T) {
 					MessageDeprecated: &pb.Simple{},
 				},
 			},
-			want: []want{
-				{field: "message_recursive_deprecated", presence: "explicit"},
+			want: want{
+				fields: []fieldMetric{
+					{field: "message_recursive_deprecated", presence: "explicit"},
+				},
+				enums: []enumMetric{},
 			},
 		},
 		{
@@ -557,12 +652,12 @@ func TestUnaryServerInterceptor2(t *testing.T) {
 				Map:     map[string]string{"a": "b"},
 				Message: &pb.WithoutDeprecated_Simple{Field: 1},
 			},
-			want: []want{},
+			want: want{},
 		},
 		{
 			name: "field presence: defaults",
 			msg:  &pb.TypesPresence{},
-			want: []want{},
+			want: want{},
 		},
 		{
 			name: "field presence: populated",
@@ -610,67 +705,77 @@ func TestUnaryServerInterceptor2(t *testing.T) {
 				StringValueOptional: wrapperspb.String("a"),
 				TimestampOptional:   timestamppb.Now(),
 			},
-			want: []want{
-				{field: "bool", presence: "implicit"},
-				{field: "float", presence: "implicit"},
-				{field: "double", presence: "implicit"},
-				{field: "bytes", presence: "implicit"},
-				{field: "string", presence: "implicit"},
-				{field: "int32", presence: "implicit"},
-				{field: "int64", presence: "implicit"},
-				{field: "sint32", presence: "implicit"},
-				{field: "sint64", presence: "implicit"},
-				{field: "sfixed32", presence: "implicit"},
-				{field: "sfixed64", presence: "implicit"},
-				{field: "uint32", presence: "implicit"},
-				{field: "uint64", presence: "implicit"},
-				{field: "fixed32", presence: "implicit"},
-				{field: "fixed64", presence: "implicit"},
-				{field: "enum", presence: "implicit"},
-				{field: "one_of", presence: "explicit"},
-				{field: "repeated", presence: "implicit"},
-				{field: "map", presence: "implicit"},
-				{field: "message", presence: "explicit"},
-				{field: "bool_optional", presence: "explicit"},
-				{field: "float_optional", presence: "explicit"},
-				{field: "double_optional", presence: "explicit"},
-				{field: "bytes_optional", presence: "explicit"},
-				{field: "string_optional", presence: "explicit"},
-				{field: "int32_optional", presence: "explicit"},
-				{field: "int64_optional", presence: "explicit"},
-				{field: "sint32_optional", presence: "explicit"},
-				{field: "sint64_optional", presence: "explicit"},
-				{field: "sfixed32_optional", presence: "explicit"},
-				{field: "sfixed64_optional", presence: "explicit"},
-				{field: "uint32_optional", presence: "explicit"},
-				{field: "uint64_optional", presence: "explicit"},
-				{field: "fixed32_optional", presence: "explicit"},
-				{field: "fixed64_optional", presence: "explicit"},
-				{field: "enum_optional", presence: "explicit"},
-				{field: "one_of_optional", presence: "explicit"},
-				{field: "message_optional", presence: "explicit"},
-				{field: "string_value", presence: "explicit"},
-				{field: "timestamp", presence: "explicit"},
-				{field: "string_value_optional", presence: "explicit"},
-				{field: "timestamp_optional", presence: "explicit"},
+			want: want{
+				fields: []fieldMetric{
+					{field: "bool", presence: "implicit"},
+					{field: "float", presence: "implicit"},
+					{field: "double", presence: "implicit"},
+					{field: "bytes", presence: "implicit"},
+					{field: "string", presence: "implicit"},
+					{field: "int32", presence: "implicit"},
+					{field: "int64", presence: "implicit"},
+					{field: "sint32", presence: "implicit"},
+					{field: "sint64", presence: "implicit"},
+					{field: "sfixed32", presence: "implicit"},
+					{field: "sfixed64", presence: "implicit"},
+					{field: "uint32", presence: "implicit"},
+					{field: "uint64", presence: "implicit"},
+					{field: "fixed32", presence: "implicit"},
+					{field: "fixed64", presence: "implicit"},
+					{field: "enum", presence: "implicit"},
+					{field: "one_of", presence: "explicit"},
+					{field: "repeated", presence: "implicit"},
+					{field: "map", presence: "implicit"},
+					{field: "message", presence: "explicit"},
+					{field: "bool_optional", presence: "explicit"},
+					{field: "float_optional", presence: "explicit"},
+					{field: "double_optional", presence: "explicit"},
+					{field: "bytes_optional", presence: "explicit"},
+					{field: "string_optional", presence: "explicit"},
+					{field: "int32_optional", presence: "explicit"},
+					{field: "int64_optional", presence: "explicit"},
+					{field: "sint32_optional", presence: "explicit"},
+					{field: "sint64_optional", presence: "explicit"},
+					{field: "sfixed32_optional", presence: "explicit"},
+					{field: "sfixed64_optional", presence: "explicit"},
+					{field: "uint32_optional", presence: "explicit"},
+					{field: "uint64_optional", presence: "explicit"},
+					{field: "fixed32_optional", presence: "explicit"},
+					{field: "fixed64_optional", presence: "explicit"},
+					{field: "enum_optional", presence: "explicit"},
+					{field: "one_of_optional", presence: "explicit"},
+					{field: "message_optional", presence: "explicit"},
+					{field: "string_value", presence: "explicit"},
+					{field: "timestamp", presence: "explicit"},
+					{field: "string_value_optional", presence: "explicit"},
+					{field: "timestamp_optional", presence: "explicit"},
+				},
+				enums: []enumMetric{},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			deprecatedFieldUsed.Reset()
+			deprecatedEnumUsed.Reset()
 			assert.NoError(t, interceptor(tt.msg))
 
-			assert.Equal(t, len(tt.want), testutil.CollectAndCount(deprecatedFieldUsed))
-			for _, want := range tt.want {
+			assert.Equal(t, len(tt.want.fields), testutil.CollectAndCount(deprecatedFieldUsed))
+			for _, want := range tt.want.fields {
 				c := deprecatedFieldUsed.WithLabelValues(service, method, want.field, want.presence, "", "")
+				assert.Equal(t, float64(1), testutil.ToFloat64(c))
+			}
+
+			assert.Equal(t, len(tt.want.enums), testutil.CollectAndCount(deprecatedEnumUsed))
+			for _, want := range tt.want.enums {
+				c := deprecatedEnumUsed.WithLabelValues(service, method, want.field, want.value, want.number, "", "")
 				assert.Equal(t, float64(1), testutil.ToFloat64(c))
 			}
 		})
 	}
 }
 
-func Test_reporter__limits(t *testing.T) {
+func TestTestUnaryServerInterceptor__maxItemsPerCollection(t *testing.T) {
 	service := "t.Service"
 	method := "Method"
 	interceptor := func(req any) error {
@@ -724,6 +829,7 @@ func Test_reporter__limits(t *testing.T) {
 				assert.Equal(t, float64(1), testutil.ToFloat64(c))
 			})
 			assert.Equal(t, 0, testutil.CollectAndCount(deprecatedFieldUsed))
+			assert.Equal(t, 0, testutil.CollectAndCount(deprecatedEnumUsed))
 		})
 	}
 }

@@ -82,7 +82,7 @@ func presenceKind(fd protoreflect.FieldDescriptor) string {
 	return "implicit"
 }
 
-// enumNode evaluates a terminal (leaf) field that contains deprecated enum value.
+// enumNode evaluates a terminal (leaf) field or collection item that contains deprecated Enum value.
 type enumNode struct {
 	fd            protoreflect.FieldDescriptor
 	deprecated    map[protoreflect.EnumNumber]protoreflect.Name
@@ -94,14 +94,19 @@ func newEnumNode(fd protoreflect.FieldDescriptor, deprecated map[protoreflect.En
 }
 
 func (n *enumNode) Eval(evalCtx evalContext, msg protoreflect.Message, val protoreflect.Value) {
-	if !val.IsValid() {
-		if msg == nil || !msg.Has(n.fd) {
-			return
+	if val.IsValid() { // as collection item of listNode, mapNode nested.Eval()
+		enum := val.Enum()
+		if name, ok := n.deprecated[enum]; ok {
+			evalCtx.onDeprecatedEnum(evalCtx.fieldPath.Render(), string(name), int(enum))
 		}
-		val = msg.Get(n.fd)
+		return
 	}
 
-	enum := val.Enum()
+	// as message field
+	if !msg.Has(n.fd) {
+		return
+	}
+	enum := msg.Get(n.fd).Enum()
 	if name, ok := n.deprecated[enum]; ok {
 		evalCtx.fieldPath.Push(n.fieldPathPart)
 		evalCtx.onDeprecatedEnum(evalCtx.fieldPath.Render(), string(name), int(enum))
@@ -109,7 +114,7 @@ func (n *enumNode) Eval(evalCtx evalContext, msg protoreflect.Message, val proto
 	}
 }
 
-// messageNode evaluates a nested `Message` field (never a leaf).
+// messageNode evaluates a nested Message field (never a leaf).
 type messageNode struct {
 	fd            protoreflect.FieldDescriptor
 	nested        evaluator

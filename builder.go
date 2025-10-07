@@ -36,7 +36,7 @@ func (b *planBuilder) loadOrBuild(md protoreflect.MessageDescriptor) *evalPlan {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	cache := *b.cache.Load()
-	if plan, ok := cache[md]; ok {
+	if plan, ok := cache[md]; ok { // TOCTOU
 		return plan
 	}
 	newCache := cache.Clone()

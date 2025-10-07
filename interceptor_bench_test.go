@@ -25,6 +25,7 @@ func BenchmarkUnaryServerInterceptor(b *testing.B) {
 		{name: "M", req: requestMedium()},
 		{name: "L", req: requestLarge()},
 	}
+
 	for _, bb := range benchmarks {
 		b.Run(bb.name, func(b *testing.B) {
 			b.ReportAllocs()
@@ -39,15 +40,6 @@ func BenchmarkUnaryServerInterceptor(b *testing.B) {
 	}
 
 	b.Run("cold start", func(b *testing.B) {
-		benchmarks := []struct {
-			name string
-			req  proto.Message
-		}{
-			{name: "XS", req: requestExtraSmall()},
-			{name: "S", req: requestSmall()},
-			{name: "M", req: requestMedium()},
-			{name: "L", req: requestLarge()},
-		}
 		for _, bb := range benchmarks {
 			b.Run(bb.name, func(b *testing.B) {
 				b.ReportAllocs()
@@ -119,7 +111,6 @@ func requestSmall() proto.Message {
 }
 
 func requestMedium() *pb.NodeConfig {
-	// &pb.NodePool
 	return &pb.NodeConfig{
 		MachineType:    "test",
 		DiskSizeGb:     100,
