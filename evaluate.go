@@ -16,8 +16,8 @@ type evalContext struct {
 }
 
 type (
-	onDeprecatedFieldFunc func(fieldFullName, fieldPresence string)
-	onDeprecatedEnumFunc  func(fieldFullName, enumValue string, enumNumber int)
+	onDeprecatedFieldFunc func(fd protoreflect.FieldDescriptor, fieldFullName, fieldPresence string)
+	onDeprecatedEnumFunc  func(fd protoreflect.FieldDescriptor, fieldFullName, enumValue string, enumNumber int)
 )
 
 type evalPlan struct {
@@ -71,7 +71,7 @@ func (n *fieldNode) Eval(evalCtx evalContext, msg protoreflect.Message, _ protor
 		return
 	}
 	evalCtx.fieldPath.Push(n.pathPart)
-	evalCtx.onDeprecatedField(evalCtx.fieldPath.Render(), n.presence)
+	evalCtx.onDeprecatedField(n.fd, evalCtx.fieldPath.Render(), n.presence)
 	evalCtx.fieldPath.Pop()
 }
 
@@ -97,7 +97,7 @@ func (n *enumNode) Eval(evalCtx evalContext, msg protoreflect.Message, val proto
 	if val.IsValid() { // as collection item of listNode, mapNode nested.Eval()
 		enum := val.Enum()
 		if name, ok := n.deprecated[enum]; ok {
-			evalCtx.onDeprecatedEnum(evalCtx.fieldPath.Render(), string(name), int(enum))
+			evalCtx.onDeprecatedEnum(n.fd, evalCtx.fieldPath.Render(), string(name), int(enum))
 		}
 		return
 	}
@@ -109,7 +109,7 @@ func (n *enumNode) Eval(evalCtx evalContext, msg protoreflect.Message, val proto
 	enum := msg.Get(n.fd).Enum()
 	if name, ok := n.deprecated[enum]; ok {
 		evalCtx.fieldPath.Push(n.fieldPathPart)
-		evalCtx.onDeprecatedEnum(evalCtx.fieldPath.Render(), string(name), int(enum))
+		evalCtx.onDeprecatedEnum(n.fd, evalCtx.fieldPath.Render(), string(name), int(enum))
 		evalCtx.fieldPath.Pop()
 	}
 }

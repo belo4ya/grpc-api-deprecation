@@ -22,9 +22,12 @@ type planBuilder struct {
 	cache atomic.Pointer[planCache] // copy-on-write cache
 }
 
-func newPlanBuilder() *planBuilder {
+func newPlanBuilder(seedDesc []protoreflect.MessageDescriptor) *planBuilder {
 	b := &planBuilder{}
-	cache := planCache{}
+	cache := make(planCache, len(seedDesc))
+	for _, desc := range seedDesc {
+		b.build(desc, cache)
+	}
 	b.cache.Store(&cache)
 	return b
 }
