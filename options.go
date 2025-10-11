@@ -8,31 +8,36 @@ import (
 )
 
 type config struct {
-	extraLabels ExtraLabels
-	exemplars   Exemplars
+	extraLabels LabelSet
+	exemplar    ExemplarSet
 	seedDesc    []protoreflect.MessageDescriptor
 }
 
-type ExtraLabels struct {
-	Field map[string]LabelValueFunc
-	Enum  map[string]LabelValueFunc
+type LabelSet struct {
+	Field []Label
+	Enum  []Label
 }
 
-type Exemplars = ExtraLabels
+type ExemplarSet = LabelSet
+
+type Label struct {
+	Name  string
+	Value LabelValueFunc
+}
 
 type LabelValueFunc func(ctx context.Context, msg proto.Message, fd protoreflect.FieldDescriptor) string
 
 type Option func(*config)
 
-func WithExtraLabels(extraLabels ExtraLabels) Option {
+func WithExtraLabels(extraLabels LabelSet) Option {
 	return func(c *config) {
 		c.extraLabels = extraLabels
 	}
 }
 
-func WithExemplars(exemplars Exemplars) Option {
+func WithExemplar(exemplar ExemplarSet) Option {
 	return func(c *config) {
-		c.exemplars = exemplars
+		c.exemplar = exemplar
 	}
 }
 

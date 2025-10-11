@@ -2,12 +2,9 @@ package apideprecation
 
 import (
 	"context"
-	"maps"
-	"slices"
 	"strconv"
 
 	_ "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
-	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors"
 	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
@@ -18,11 +15,8 @@ type Metrics struct {
 	cfg     *config
 	builder *planBuilder
 
-	labelsExtractor   labelsExtractor
-	exemplarExtractor labelsExtractor
-
-	onDeprecatedField onDeprecatedFieldFunc
-	onDeprecatedEnum  onDeprecatedEnumFunc
+	extraLabels compiledLabels
+	exemplar    compiledLabels
 
 	deprecatedFieldUsed *prometheus.CounterVec
 	deprecatedEnumUsed  *prometheus.CounterVec
@@ -34,21 +28,17 @@ func NewMetrics(opts ...Option) *Metrics {
 		opt(cfg)
 	}
 
-	builder := newPlanBuilder(cfg.seedDesc)
-
-	labelsExtractor := cfg.extraLabels.extractor()
-	exemplarExtractor := cfg.exemplars.extractor()
-
 	defaultLabels := []string{"grpc_type", "grpc_service", "grpc_method", "field"}
 
-	fieldLabels := append(append(defaultLabels, "field_presence"), labelsExtractor.field.labels...)
-	enumLabels := append(append(defaultLabels, "enum_value", "enum_number"), labelsExtractor.enum.labels...)
+	extraLabels := cfg.extraLabels.compile()
+	fieldLabels := append(append(defaultLabels, "field_presence"), extraLabels.fieldLabels...)
+	enumLabels := append(append(defaultLabels, "enum_value", "enum_number"), extraLabels.enumLabels...)
 
 	return &Metrics{
-		cfg:               cfg,
-		builder:           builder,
-		labelsExtractor:   labelsExtractor,
-		exemplarExtractor: exemplarExtractor,
+		cfg:         cfg,
+		builder:     newPlanBuilder(cfg.seedDesc),
+		extraLabels: extraLabels,
+		exemplar:    cfg.exemplar.compile(),
 		deprecatedFieldUsed: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "grpc_deprecated_field_used_total",
 			Help: "Count of requests using deprecated fields (proto field option deprecated=true).",
@@ -73,7 +63,7 @@ func (m *Metrics) Collect(ch chan<- prometheus.Metric) {
 func (m *Metrics) UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		if msg, ok := req.(proto.Message); ok {
-			m.observe(ctx, msg, interceptors.NewServerCallMeta(info.FullMethod, nil, req))
+			m.observe(ctx, msg, newCallMeta(info.FullMethod, nil))
 		}
 		return handler(ctx, req)
 	}
@@ -81,15 +71,14 @@ func (m *Metrics) UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 
 func (m *Metrics) StreamServerInterceptor() grpc.StreamServerInterceptor {
 	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		meta := interceptors.NewServerCallMeta(info.FullMethod, info, nil)
-		return handler(srv, &wrappedServerStream{ServerStream: ss, metrics: m, meta: meta})
+		return handler(srv, &wrappedServerStream{ServerStream: ss, metrics: m, meta: newCallMeta(info.FullMethod, info)})
 	}
 }
 
 type wrappedServerStream struct {
 	grpc.ServerStream
 	metrics *Metrics
-	meta    interceptors.CallMeta
+	meta    callMeta
 }
 
 func (s *wrappedServerStream) RecvMsg(m any) error {
@@ -102,91 +91,85 @@ func (s *wrappedServerStream) RecvMsg(m any) error {
 	return nil
 }
 
-func (m *Metrics) observe(ctx context.Context, req proto.Message, meta interceptors.CallMeta) {
-	typ, service, method := string(meta.Typ), meta.Service, meta.Method
+func (m *Metrics) observe(ctx context.Context, req proto.Message, meta callMeta) {
+	typ, service, method := meta.Type, meta.Service, meta.Method
+
+	// TODO: sync.Pool can slightly speed up the onDeprecatedField and onDeprecatedEnum functions.
 
 	msg := req.ProtoReflect()
 	plan := m.builder.LoadOrBuild(msg.Descriptor())
 	plan.EvalMessage(msg, meta.Service, meta.Method,
 		func(fd protoreflect.FieldDescriptor, fieldFullName, fieldPresence string) {
-			labelExtractors := m.labelsExtractor.field.funcs
-
-			lvs := make([]string, 0, 5+len(labelExtractors))
-			lvs = append(lvs, typ, service, method, fieldFullName, fieldPresence)
-			for _, valueFunc := range labelExtractors {
-				lvs = append(lvs, valueFunc(ctx, req, fd))
-			}
-
-			exemplarExtractors := m.exemplarExtractor.field
-
-			exemplar := make(prometheus.Labels, len(exemplarExtractors.labels))
-			for i, label := range exemplarExtractors.labels {
-				exemplar[label] = exemplarExtractors.funcs[i](ctx, req, fd)
-			}
-
-			m.incrementWithExemplar(m.deprecatedFieldUsed, lvs, exemplar)
+			base := []string{typ, service, method, fieldFullName, fieldPresence}
+			lvs := m.buildLabelValues(base, m.extraLabels.fieldValues, ctx, req, fd)
+			exemplar := m.buildExemplar(m.exemplar.fieldLabels, m.exemplar.fieldValues, ctx, req, fd)
+			m.increment(m.deprecatedFieldUsed, lvs, exemplar)
 		},
 		func(fd protoreflect.FieldDescriptor, fieldFullName, enumValue string, enumNumber int) {
-			labelExtractors := m.labelsExtractor.enum.funcs
-
-			lvs := make([]string, 0, 6+len(labelExtractors))
-			lvs = append(lvs, typ, service, method, fieldFullName, enumValue, strconv.Itoa(enumNumber))
-			for _, valueFunc := range labelExtractors {
-				lvs = append(lvs, valueFunc(ctx, req, fd))
-			}
-
-			exemplarExtractors := m.exemplarExtractor.enum
-
-			exemplar := make(prometheus.Labels, len(exemplarExtractors.labels))
-			for i, label := range exemplarExtractors.labels {
-				exemplar[label] = exemplarExtractors.funcs[i](ctx, req, fd)
-			}
-
-			m.incrementWithExemplar(m.deprecatedEnumUsed, lvs, exemplar)
+			base := []string{typ, service, method, fieldFullName, enumValue, strconv.Itoa(enumNumber)}
+			lvs := m.buildLabelValues(base, m.extraLabels.enumValues, ctx, req, fd)
+			exemplar := m.buildExemplar(m.exemplar.enumLabels, m.exemplar.enumValues, ctx, req, fd)
+			m.increment(m.deprecatedEnumUsed, lvs, exemplar)
 		})
 }
 
-func (m *Metrics) onDeprecatedFieldFunc( /*TODO*/ ) onDeprecatedFieldFunc {
-	return func(fd protoreflect.FieldDescriptor, fieldFullName, fieldPresence string) {
-		// TODO
+func (m *Metrics) buildLabelValues(
+	base []string,
+	valFuncs []LabelValueFunc,
+	ctx context.Context, req proto.Message, fd protoreflect.FieldDescriptor,
+) []string {
+	lvs := make([]string, 0, len(base)+len(valFuncs))
+	lvs = append(lvs, base...)
+	for _, valF := range valFuncs {
+		lvs = append(lvs, valF(ctx, req, fd))
+	}
+	return lvs
+}
+
+func (m *Metrics) buildExemplar(
+	labels []string,
+	valFuncs []LabelValueFunc,
+	ctx context.Context, req proto.Message, fd protoreflect.FieldDescriptor,
+) prometheus.Labels {
+	if len(labels) == 0 {
+		return nil
+	}
+	exemplar := make(prometheus.Labels, len(labels))
+	for i, label := range labels {
+		exemplar[label] = valFuncs[i](ctx, req, fd)
+	}
+	return exemplar
+}
+
+func (m *Metrics) increment(c *prometheus.CounterVec, lvs []string, exemplar prometheus.Labels) {
+	if exemplar == nil {
+		c.WithLabelValues(lvs...).Inc()
+	} else {
+		c.WithLabelValues(lvs...).(prometheus.ExemplarAdder).AddWithExemplar(1, exemplar)
 	}
 }
 
-func (m *Metrics) onDeprecatedEnumFunc( /*TODO*/ ) onDeprecatedEnumFunc {
-	return func(fd protoreflect.FieldDescriptor, fieldFullName, enumValue string, enumNumber int) {
-		// TODO
+type compiledLabels struct {
+	fieldLabels []string
+	fieldValues []LabelValueFunc
+	enumLabels  []string
+	enumValues  []LabelValueFunc
+}
+
+func (s LabelSet) compile() compiledLabels {
+	compiled := compiledLabels{
+		fieldLabels: make([]string, 0, len(s.Field)),
+		fieldValues: make([]LabelValueFunc, 0, len(s.Field)),
+		enumLabels:  make([]string, 0, len(s.Enum)),
+		enumValues:  make([]LabelValueFunc, 0, len(s.Enum)),
 	}
-}
-
-func (m *Metrics) incrementWithExemplar(c *prometheus.CounterVec, lvs []string, exemplar prometheus.Labels) {
-	c.WithLabelValues(lvs...).(prometheus.ExemplarAdder).AddWithExemplar(1, exemplar)
-}
-
-func (el ExtraLabels) extractor() labelsExtractor {
-	return labelsExtractor{
-		field: el.labelsFuncs(el.Field),
-		enum:  el.labelsFuncs(el.Enum),
+	for _, label := range s.Field {
+		compiled.fieldLabels = append(compiled.fieldLabels, label.Name)
+		compiled.fieldValues = append(compiled.fieldValues, label.Value)
 	}
-}
-
-func (el ExtraLabels) labelsFuncs(m map[string]LabelValueFunc) labelsFuncs {
-	lfs := labelsFuncs{
-		labels: slices.Collect(maps.Keys(m)),
-		funcs:  make([]LabelValueFunc, len(m)),
+	for _, label := range s.Enum {
+		compiled.enumLabels = append(compiled.enumLabels, label.Name)
+		compiled.enumValues = append(compiled.enumValues, label.Value)
 	}
-	slices.Sort(lfs.labels)
-	for _, label := range lfs.labels {
-		lfs.funcs = append(lfs.funcs, m[label])
-	}
-	return lfs
-}
-
-type labelsExtractor struct {
-	field labelsFuncs
-	enum  labelsFuncs
-}
-
-type labelsFuncs struct {
-	labels []string
-	funcs  []LabelValueFunc
+	return compiled
 }
