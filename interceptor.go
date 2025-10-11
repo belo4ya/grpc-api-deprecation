@@ -6,36 +6,38 @@ import (
 	"slices"
 	"strconv"
 
+	_ "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-var (
-	deprecatedFieldUsed = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "grpc_deprecated_field_used_total",
-			Help: "Count of requests using deprecated fields (proto field option deprecated=true).",
-		},
-		[]string{"grpc_type", "grpc_service", "grpc_method", "field", "field_presence"},
-	)
-	deprecatedEnumUsed = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "grpc_deprecated_enum_used_total",
-			Help: "Count of requests using deprecated enum values (proto enum value option deprecated=true).",
-		},
-		[]string{"grpc_type", "grpc_service", "grpc_method", "field", "enum_value", "enum_number"},
-	)
-)
+//var (
+//	deprecatedFieldUsed = promauto.NewCounterVec(
+//		prometheus.CounterOpts{
+//			Name: "grpc_deprecated_field_used_total",
+//			Help: "Count of requests using deprecated fields (proto field option deprecated=true).",
+//		},
+//		[]string{"grpc_type", "grpc_service", "grpc_method", "field", "field_presence"},
+//	)
+//	deprecatedEnumUsed = promauto.NewCounterVec(
+//		prometheus.CounterOpts{
+//			Name: "grpc_deprecated_enum_used_total",
+//			Help: "Count of requests using deprecated enum values (proto enum value option deprecated=true).",
+//		},
+//		[]string{"grpc_type", "grpc_service", "grpc_method", "field", "enum_value", "enum_number"},
+//	)
+//)
 
 type Metrics struct {
-	cfg                 *config
-	builder             *planBuilder
-	fieldExtractors     labelsExtractor
-	enumExtractors      labelsExtractor
+	cfg     *config
+	builder *planBuilder
+
+	labelsExtractor   labelsExtractor
+	exemplarExtractor labelsExtractor
+
 	deprecatedFieldUsed *prometheus.CounterVec
 	deprecatedEnumUsed  *prometheus.CounterVec
 }
@@ -48,16 +50,19 @@ func NewMetrics(opts ...Option) *Metrics {
 
 	builder := newPlanBuilder(cfg.seedDesc)
 
-	defaultLabels := []string{"grpc_type", "grpc_service", "grpc_method", "field"}
-	fieldExtraLabels := cfg.extraLabelsExtractor.field.labels
-	enumExtraLabels := cfg.extraLabelsExtractor.enum.labels
+	labelsExtractor := cfg.extraLabels.extractor()
+	exemplarExtractor := cfg.exemplars.extractor()
 
-	fieldLabels := append(append(defaultLabels, "field_presence"), fieldExtraLabels...)
-	enumLabels := append(append(defaultLabels, "enum_value", "enum_number"), enumExtraLabels...)
+	defaultLabels := []string{"grpc_type", "grpc_service", "grpc_method", "field"}
+
+	fieldLabels := append(append(defaultLabels, "field_presence"), labelsExtractor.field.labels...)
+	enumLabels := append(append(defaultLabels, "enum_value", "enum_number"), labelsExtractor.enum.labels...)
 
 	return &Metrics{
-		cfg:     cfg,
-		builder: builder,
+		cfg:               cfg,
+		builder:           builder,
+		labelsExtractor:   labelsExtractor,
+		exemplarExtractor: exemplarExtractor,
 		deprecatedFieldUsed: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "grpc_deprecated_field_used_total",
 			Help: "Count of requests using deprecated fields (proto field option deprecated=true).",
@@ -118,36 +123,39 @@ func (m *Metrics) observe(ctx context.Context, req proto.Message, meta intercept
 	plan := m.builder.LoadOrBuild(msg.Descriptor())
 	plan.EvalMessage(msg, meta.Service, meta.Method,
 		func(fd protoreflect.FieldDescriptor, fieldFullName, fieldPresence string) {
-			extraLabels := m.cfg.extraLabelsExtractor.field.labels
-			extraLabelFuncs := m.cfg.extraLabelsExtractor.field.funcs
+			labelExtractors := m.labelsExtractor.field.funcs
 
-			lvs := make([]string, 0, 5+len(extraLabels))
+			lvs := make([]string, 0, 5+len(labelExtractors))
 			lvs = append(lvs, typ, service, method, fieldFullName, fieldPresence)
-			for _, valueFunc := range extraLabelFuncs {
+			for _, valueFunc := range labelExtractors {
 				lvs = append(lvs, valueFunc(ctx, req, fd))
 			}
 
-			exemplar := make(prometheus.Labels, len(m.cfg.exemplars.Field))
-			for label, value := range m.cfg.exemplars.Field {
-				exemplar[label] = value(ctx, req, fd)
+			exemplarExtractors := m.exemplarExtractor.field
+
+			exemplar := make(prometheus.Labels, len(exemplarExtractors.labels))
+			for i, label := range exemplarExtractors.labels {
+				exemplar[label] = exemplarExtractors.funcs[i](ctx, req, fd)
 			}
 
 			m.incrementWithExemplar(m.deprecatedFieldUsed, lvs, exemplar)
 		},
 		func(fd protoreflect.FieldDescriptor, fieldFullName, enumValue string, enumNumber int) {
-			extraLabels := m.cfg.extraLabelsExtractor.enum.labels
-			//extraLabelFuncs := m.cfg.extraLabelsExtractor.enum.funcs
+			labelExtractors := m.labelsExtractor.enum.funcs
 
-			lvs := make([]string, 0, 6+len(extraLabels))
+			lvs := make([]string, 0, 6+len(labelExtractors))
 			lvs = append(lvs, typ, service, method, fieldFullName, enumValue, strconv.Itoa(enumNumber))
-			//for _, label := range m.enumExtraLabels {
-			//	value := m.cfg.extraLabels.Enum[label](ctx, req, fd)
-			//	lvs = append(lvs, value)
-			//}
-			exemplar := make(prometheus.Labels, len(m.cfg.exemplars.Enum))
-			//for label, value := range m.cfg.exemplars.Enum {
-			//	exemplar[label] = value(ctx, req, fd)
-			//}
+			for _, valueFunc := range labelExtractors {
+				lvs = append(lvs, valueFunc(ctx, req, fd))
+			}
+
+			exemplarExtractors := m.exemplarExtractor.enum
+
+			exemplar := make(prometheus.Labels, len(exemplarExtractors.labels))
+			for i, label := range exemplarExtractors.labels {
+				exemplar[label] = exemplarExtractors.funcs[i](ctx, req, fd)
+			}
+
 			m.incrementWithExemplar(m.deprecatedEnumUsed, lvs, exemplar)
 		})
 }
@@ -163,10 +171,10 @@ func (el ExtraLabels) extractor() labelsExtractor {
 	}
 }
 
-func (el ExtraLabels) labelsFuncs(m map[string]labelValueFunc) labelsFuncs {
+func (el ExtraLabels) labelsFuncs(m map[string]LabelValueFunc) labelsFuncs {
 	lfs := labelsFuncs{
 		labels: slices.Collect(maps.Keys(m)),
-		funcs:  make([]labelValueFunc, len(m)),
+		funcs:  make([]LabelValueFunc, len(m)),
 	}
 	slices.Sort(lfs.labels)
 	for _, label := range lfs.labels {
@@ -182,5 +190,5 @@ type labelsExtractor struct {
 
 type labelsFuncs struct {
 	labels []string
-	funcs  []labelValueFunc
+	funcs  []LabelValueFunc
 }

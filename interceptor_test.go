@@ -21,14 +21,15 @@ import (
 
 func TestUnaryServerInterceptor(t *testing.T) {
 	ctx := context.Background()
+	metrics := NewMetrics()
 
 	type fieldMetric struct {
-		val                                float64
-		field, presence, projectID, userID string
+		val             float64
+		field, presence string
 	}
 	type enumMetric struct {
-		val                                     float64
-		field, value, number, projectID, userID string
+		val                  float64
+		field, value, number string
 	}
 
 	type args struct {
@@ -72,7 +73,7 @@ func TestUnaryServerInterceptor(t *testing.T) {
 			},
 			want: want{fields: []fieldMetric{{
 				val:   1,
-				field: "scalar_optional_deprecated", presence: "explicit", projectID: "", userID: "",
+				field: "scalar_optional_deprecated", presence: "explicit",
 			}}},
 		},
 		{
@@ -89,16 +90,16 @@ func TestUnaryServerInterceptor(t *testing.T) {
 			},
 			want: want{fields: []fieldMetric{{
 				val:   1,
-				field: "scalar_deprecated", presence: "implicit", projectID: "", userID: "",
+				field: "scalar_deprecated", presence: "implicit",
 			}, {
 				val:   1,
-				field: "message.field_deprecated", presence: "implicit", projectID: "", userID: "",
+				field: "message.field_deprecated", presence: "implicit",
 			}, {
 				val:   1,
-				field: "maps.scalars_deprecate", presence: "implicit", projectID: "", userID: "",
+				field: "maps.scalars_deprecate", presence: "implicit",
 			}, {
 				val:   1,
-				field: "lists.messages[].field_deprecated", presence: "implicit", projectID: "", userID: "",
+				field: "lists.messages[].field_deprecated", presence: "implicit",
 			}}},
 		},
 		{
@@ -118,13 +119,13 @@ func TestUnaryServerInterceptor(t *testing.T) {
 			},
 			want: want{enums: []enumMetric{{
 				val:   1,
-				field: "enum", value: "ENUM_DEPRECATED", number: "2", projectID: "", userID: "",
+				field: "enum", value: "ENUM_DEPRECATED", number: "2",
 			}, {
 				val:   1,
-				field: "lists.enums", value: "ENUM_DEPRECATED", number: "2", projectID: "", userID: "",
+				field: "lists.enums", value: "ENUM_DEPRECATED", number: "2",
 			}, {
 				val:   1,
-				field: "maps.enums", value: "ENUM_DEPRECATED", number: "2", projectID: "", userID: "",
+				field: "maps.enums", value: "ENUM_DEPRECATED", number: "2",
 			}}},
 		},
 		{
@@ -141,10 +142,10 @@ func TestUnaryServerInterceptor(t *testing.T) {
 			},
 			want: want{fields: []fieldMetric{{
 				val:   1,
-				field: "scalar_deprecated", presence: "implicit", projectID: "", userID: "",
+				field: "scalar_deprecated", presence: "implicit",
 			}}, enums: []enumMetric{{
 				val:   1,
-				field: "enum", value: "ENUM_DEPRECATED", number: "2", projectID: "", userID: "",
+				field: "enum", value: "ENUM_DEPRECATED", number: "2",
 			}}},
 		},
 		{
@@ -156,7 +157,7 @@ func TestUnaryServerInterceptor(t *testing.T) {
 			},
 			want: want{fields: []fieldMetric{{
 				val:   1,
-				field: "scalar_deprecated", presence: "implicit", projectID: "", userID: "",
+				field: "scalar_deprecated", presence: "implicit",
 			}}},
 		},
 		{
@@ -172,22 +173,22 @@ func TestUnaryServerInterceptor(t *testing.T) {
 			},
 			want: want{fields: []fieldMetric{{
 				val:   3,
-				field: "scalar_deprecated", presence: "implicit", projectID: "", userID: "",
+				field: "scalar_deprecated", presence: "implicit",
 			}, {
 				val:   3,
-				field: "scalar_optional_deprecated", presence: "explicit", projectID: "", userID: "",
+				field: "scalar_optional_deprecated", presence: "explicit",
 			}}, enums: []enumMetric{{
 				val:   3,
-				field: "enum", value: "ENUM_DEPRECATED", number: "2", projectID: "", userID: "",
+				field: "enum", value: "ENUM_DEPRECATED", number: "2",
 			}}},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			deprecatedFieldUsed.Reset()
-			deprecatedEnumUsed.Reset()
+			metrics.deprecatedFieldUsed.Reset()
+			metrics.deprecatedEnumUsed.Reset()
 
-			interceptor := UnaryServerInterceptor()
+			interceptor := metrics.UnaryServerInterceptor()
 			for range tt.args.calls {
 				_, err := interceptor(
 					tt.args.ctx, tt.args.req,
@@ -197,15 +198,15 @@ func TestUnaryServerInterceptor(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			assert.Equal(t, len(tt.want.fields), testutil.CollectAndCount(deprecatedFieldUsed))
+			assert.Equal(t, len(tt.want.fields), testutil.CollectAndCount(metrics.deprecatedFieldUsed))
 			for _, want := range tt.want.fields {
-				c := deprecatedFieldUsed.WithLabelValues("t.Service", "Method", want.field, want.presence, want.projectID, want.userID)
+				c := metrics.deprecatedFieldUsed.WithLabelValues("unary", "t.Service", "Method", want.field, want.presence)
 				assert.Equal(t, want.val, testutil.ToFloat64(c))
 			}
 
-			assert.Equal(t, len(tt.want.enums), testutil.CollectAndCount(deprecatedEnumUsed))
+			assert.Equal(t, len(tt.want.enums), testutil.CollectAndCount(metrics.deprecatedEnumUsed))
 			for _, want := range tt.want.enums {
-				c := deprecatedEnumUsed.WithLabelValues("t.Service", "Method", want.field, want.value, want.number, want.projectID, want.userID)
+				c := metrics.deprecatedEnumUsed.WithLabelValues("unary", "t.Service", "Method", want.field, want.value, want.number)
 				assert.Equal(t, want.val, testutil.ToFloat64(c))
 			}
 		})
@@ -213,10 +214,12 @@ func TestUnaryServerInterceptor(t *testing.T) {
 }
 
 func TestUnaryServerInterceptor__correctness(t *testing.T) {
+	metrics := NewMetrics()
+
 	service := "t.Service"
 	method := "Method"
 	interceptor := func(req any) error {
-		interceptor := UnaryServerInterceptor()
+		interceptor := metrics.UnaryServerInterceptor()
 		_, err := interceptor(
 			context.Background(), req,
 			&grpc.UnaryServerInfo{FullMethod: "/" + service + "/" + method},
@@ -756,19 +759,19 @@ func TestUnaryServerInterceptor__correctness(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			deprecatedFieldUsed.Reset()
-			deprecatedEnumUsed.Reset()
+			metrics.deprecatedFieldUsed.Reset()
+			metrics.deprecatedEnumUsed.Reset()
 			assert.NoError(t, interceptor(tt.msg))
 
-			assert.Equal(t, len(tt.want.fields), testutil.CollectAndCount(deprecatedFieldUsed))
+			assert.Equal(t, len(tt.want.fields), testutil.CollectAndCount(metrics.deprecatedFieldUsed))
 			for _, want := range tt.want.fields {
-				c := deprecatedFieldUsed.WithLabelValues(service, method, want.field, want.presence, "", "")
+				c := metrics.deprecatedFieldUsed.WithLabelValues("unary", service, method, want.field, want.presence)
 				assert.Equal(t, float64(1), testutil.ToFloat64(c))
 			}
 
-			assert.Equal(t, len(tt.want.enums), testutil.CollectAndCount(deprecatedEnumUsed))
+			assert.Equal(t, len(tt.want.enums), testutil.CollectAndCount(metrics.deprecatedEnumUsed))
 			for _, want := range tt.want.enums {
-				c := deprecatedEnumUsed.WithLabelValues(service, method, want.field, want.value, want.number, "", "")
+				c := metrics.deprecatedEnumUsed.WithLabelValues("unary", service, method, want.field, want.value, want.number)
 				assert.Equal(t, float64(1), testutil.ToFloat64(c))
 			}
 		})
@@ -776,13 +779,15 @@ func TestUnaryServerInterceptor__correctness(t *testing.T) {
 }
 
 func TestTestUnaryServerInterceptor__maxItemsPerCollection(t *testing.T) {
+	metrics := NewMetrics()
+
 	service := "t.Service"
 	method := "Method"
 	interceptor := func(req any) error {
-		deprecatedFieldUsed.Reset()
+		metrics.deprecatedFieldUsed.Reset()
 		hitMaxItemsPerCollection.Reset()
 
-		interceptor := UnaryServerInterceptor()
+		interceptor := metrics.UnaryServerInterceptor()
 		_, err := interceptor(
 			context.Background(), req,
 			&grpc.UnaryServerInfo{FullMethod: "/" + service + "/" + method},
@@ -828,8 +833,8 @@ func TestTestUnaryServerInterceptor__maxItemsPerCollection(t *testing.T) {
 			tt.callAssert(func(c prometheus.Collector) {
 				assert.Equal(t, float64(1), testutil.ToFloat64(c))
 			})
-			assert.Equal(t, 0, testutil.CollectAndCount(deprecatedFieldUsed))
-			assert.Equal(t, 0, testutil.CollectAndCount(deprecatedEnumUsed))
+			assert.Equal(t, 0, testutil.CollectAndCount(metrics.deprecatedFieldUsed))
+			assert.Equal(t, 0, testutil.CollectAndCount(metrics.deprecatedEnumUsed))
 		})
 	}
 }

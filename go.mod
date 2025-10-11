@@ -6,6 +6,7 @@ toolchain go1.24.7
 
 require (
 	github.com/golang/protobuf v1.5.4
+	github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.1.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.2
 	github.com/prometheus/client_golang v1.23.2
 	github.com/samber/lo v1.51.0

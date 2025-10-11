@@ -14,13 +14,13 @@ type config struct {
 }
 
 type ExtraLabels struct {
-	Field map[string]labelValueFunc
-	Enum  map[string]labelValueFunc
+	Field map[string]LabelValueFunc
+	Enum  map[string]LabelValueFunc
 }
 
-type Exemplars ExtraLabels
+type Exemplars = ExtraLabels
 
-type labelValueFunc func(ctx context.Context, msg proto.Message, fd protoreflect.FieldDescriptor) string
+type LabelValueFunc func(ctx context.Context, msg proto.Message, fd protoreflect.FieldDescriptor) string
 
 type Option func(*config)
 
