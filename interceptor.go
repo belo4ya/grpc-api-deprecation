@@ -15,7 +15,7 @@ import (
 )
 
 type Metrics struct {
-	opts    *options
+	cfg     *config
 	builder *planBuilder
 
 	labelsExtractor   labelsExtractor
@@ -29,15 +29,15 @@ type Metrics struct {
 }
 
 func NewMetrics(opts ...Option) *Metrics {
-	o := &options{}
+	cfg := &config{}
 	for _, opt := range opts {
-		opt(o)
+		opt(cfg)
 	}
 
-	builder := newPlanBuilder(o.seedDesc)
+	builder := newPlanBuilder(cfg.seedDesc)
 
-	labelsExtractor := o.extraLabels.extractor()
-	exemplarExtractor := o.exemplars.extractor()
+	labelsExtractor := cfg.extraLabels.extractor()
+	exemplarExtractor := cfg.exemplars.extractor()
 
 	defaultLabels := []string{"grpc_type", "grpc_service", "grpc_method", "field"}
 
@@ -45,7 +45,7 @@ func NewMetrics(opts ...Option) *Metrics {
 	enumLabels := append(append(defaultLabels, "enum_value", "enum_number"), labelsExtractor.enum.labels...)
 
 	return &Metrics{
-		opts:              o,
+		cfg:               cfg,
 		builder:           builder,
 		labelsExtractor:   labelsExtractor,
 		exemplarExtractor: exemplarExtractor,
