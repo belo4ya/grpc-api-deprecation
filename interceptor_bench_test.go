@@ -54,11 +54,9 @@ func BenchmarkUnaryServerInterceptor(b *testing.B) {
 	})
 }
 
-var metrics = NewMetrics()
-
 func makeInterceptor() func(req any) error {
 	ctx := context.Background()
-	interceptor := metrics.UnaryServerInterceptor()
+	interceptor := NewMetrics().UnaryServerInterceptor()
 	return func(req any) error {
 		_, err := interceptor(
 			ctx, req,

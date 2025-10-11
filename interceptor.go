@@ -14,23 +14,6 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-//var (
-//	deprecatedFieldUsed = promauto.NewCounterVec(
-//		prometheus.CounterOpts{
-//			Name: "grpc_deprecated_field_used_total",
-//			Help: "Count of requests using deprecated fields (proto field option deprecated=true).",
-//		},
-//		[]string{"grpc_type", "grpc_service", "grpc_method", "field", "field_presence"},
-//	)
-//	deprecatedEnumUsed = promauto.NewCounterVec(
-//		prometheus.CounterOpts{
-//			Name: "grpc_deprecated_enum_used_total",
-//			Help: "Count of requests using deprecated enum values (proto enum value option deprecated=true).",
-//		},
-//		[]string{"grpc_type", "grpc_service", "grpc_method", "field", "enum_value", "enum_number"},
-//	)
-//)
-
 type Metrics struct {
 	cfg     *config
 	builder *planBuilder
