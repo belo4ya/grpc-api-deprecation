@@ -7,7 +7,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-type config struct {
+type options struct {
 	extraLabels ExtraLabels
 	exemplars   Exemplars
 	seedDesc    []protoreflect.MessageDescriptor
@@ -22,22 +22,22 @@ type Exemplars = ExtraLabels
 
 type LabelValueFunc func(ctx context.Context, msg proto.Message, fd protoreflect.FieldDescriptor) string
 
-type Option func(*config)
+type Option func(*options)
 
 func WithExtraLabels(extraLabels ExtraLabels) Option {
-	return func(c *config) {
-		c.extraLabels = extraLabels
+	return func(o *options) {
+		o.extraLabels = extraLabels
 	}
 }
 
 func WithExemplars(exemplars Exemplars) Option {
-	return func(c *config) {
-		c.exemplars = exemplars
+	return func(o *options) {
+		o.exemplars = exemplars
 	}
 }
 
 func WithMessageDescriptors(descriptors ...protoreflect.MessageDescriptor) Option {
-	return func(c *config) {
-		c.seedDesc = append(c.seedDesc, descriptors...)
+	return func(o *options) {
+		o.seedDesc = descriptors
 	}
 }

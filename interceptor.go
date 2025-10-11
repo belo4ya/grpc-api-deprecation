@@ -15,26 +15,29 @@ import (
 )
 
 type Metrics struct {
-	cfg     *config
+	opts    *options
 	builder *planBuilder
 
 	labelsExtractor   labelsExtractor
 	exemplarExtractor labelsExtractor
+
+	onDeprecatedField onDeprecatedFieldFunc
+	onDeprecatedEnum  onDeprecatedEnumFunc
 
 	deprecatedFieldUsed *prometheus.CounterVec
 	deprecatedEnumUsed  *prometheus.CounterVec
 }
 
 func NewMetrics(opts ...Option) *Metrics {
-	cfg := &config{}
+	o := &options{}
 	for _, opt := range opts {
-		opt(cfg)
+		opt(o)
 	}
 
-	builder := newPlanBuilder(cfg.seedDesc)
+	builder := newPlanBuilder(o.seedDesc)
 
-	labelsExtractor := cfg.extraLabels.extractor()
-	exemplarExtractor := cfg.exemplars.extractor()
+	labelsExtractor := o.extraLabels.extractor()
+	exemplarExtractor := o.exemplars.extractor()
 
 	defaultLabels := []string{"grpc_type", "grpc_service", "grpc_method", "field"}
 
@@ -42,7 +45,7 @@ func NewMetrics(opts ...Option) *Metrics {
 	enumLabels := append(append(defaultLabels, "enum_value", "enum_number"), labelsExtractor.enum.labels...)
 
 	return &Metrics{
-		cfg:               cfg,
+		opts:              o,
 		builder:           builder,
 		labelsExtractor:   labelsExtractor,
 		exemplarExtractor: exemplarExtractor,
@@ -141,6 +144,18 @@ func (m *Metrics) observe(ctx context.Context, req proto.Message, meta intercept
 
 			m.incrementWithExemplar(m.deprecatedEnumUsed, lvs, exemplar)
 		})
+}
+
+func (m *Metrics) onDeprecatedFieldFunc( /*TODO*/ ) onDeprecatedFieldFunc {
+	return func(fd protoreflect.FieldDescriptor, fieldFullName, fieldPresence string) {
+		// TODO
+	}
+}
+
+func (m *Metrics) onDeprecatedEnumFunc( /*TODO*/ ) onDeprecatedEnumFunc {
+	return func(fd protoreflect.FieldDescriptor, fieldFullName, enumValue string, enumNumber int) {
+		// TODO
+	}
 }
 
 func (m *Metrics) incrementWithExemplar(c *prometheus.CounterVec, lvs []string, exemplar prometheus.Labels) {
