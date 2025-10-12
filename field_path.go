@@ -10,7 +10,7 @@ import (
 func renderFieldPathPart(fd protoreflect.FieldDescriptor) string {
 	name := string(fd.Name())
 	if fd.IsList() {
-		return name + "[]"
+		return name + "{}"
 	}
 	if fd.IsMap() {
 		return name + "{}"
