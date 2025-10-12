@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.8
 // 	protoc        (unknown)
-// source: deprecation.proto
+// source: annotations.proto
 
 package deprecation
 
@@ -34,7 +34,7 @@ type DeprecationDetails struct {
 
 func (x *DeprecationDetails) Reset() {
 	*x = DeprecationDetails{}
-	mi := &file_deprecation_proto_msgTypes[0]
+	mi := &file_annotations_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -46,7 +46,7 @@ func (x *DeprecationDetails) String() string {
 func (*DeprecationDetails) ProtoMessage() {}
 
 func (x *DeprecationDetails) ProtoReflect() protoreflect.Message {
-	mi := &file_deprecation_proto_msgTypes[0]
+	mi := &file_annotations_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -59,7 +59,7 @@ func (x *DeprecationDetails) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeprecationDetails.ProtoReflect.Descriptor instead.
 func (*DeprecationDetails) Descriptor() ([]byte, []int) {
-	return file_deprecation_proto_rawDescGZIP(), []int{0}
+	return file_annotations_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *DeprecationDetails) GetEffectiveAt() string {
@@ -76,14 +76,14 @@ func (x *DeprecationDetails) GetDescription() string {
 	return ""
 }
 
-var file_deprecation_proto_extTypes = []protoimpl.ExtensionInfo{
+var file_annotations_proto_extTypes = []protoimpl.ExtensionInfo{
 	{
 		ExtendedType:  (*descriptorpb.ServiceOptions)(nil),
 		ExtensionType: (*DeprecationDetails)(nil),
 		Field:         1194,
 		Name:          "deprecation.service_deprecation_details",
 		Tag:           "bytes,1194,opt,name=service_deprecation_details",
-		Filename:      "deprecation.proto",
+		Filename:      "annotations.proto",
 	},
 	{
 		ExtendedType:  (*descriptorpb.MethodOptions)(nil),
@@ -91,7 +91,7 @@ var file_deprecation_proto_extTypes = []protoimpl.ExtensionInfo{
 		Field:         1194,
 		Name:          "deprecation.method_deprecation_details",
 		Tag:           "bytes,1194,opt,name=method_deprecation_details",
-		Filename:      "deprecation.proto",
+		Filename:      "annotations.proto",
 	},
 	{
 		ExtendedType:  (*descriptorpb.MessageOptions)(nil),
@@ -99,7 +99,7 @@ var file_deprecation_proto_extTypes = []protoimpl.ExtensionInfo{
 		Field:         1194,
 		Name:          "deprecation.message_deprecation_details",
 		Tag:           "bytes,1194,opt,name=message_deprecation_details",
-		Filename:      "deprecation.proto",
+		Filename:      "annotations.proto",
 	},
 	{
 		ExtendedType:  (*descriptorpb.FieldOptions)(nil),
@@ -107,7 +107,7 @@ var file_deprecation_proto_extTypes = []protoimpl.ExtensionInfo{
 		Field:         1194,
 		Name:          "deprecation.field_deprecation_details",
 		Tag:           "bytes,1194,opt,name=field_deprecation_details",
-		Filename:      "deprecation.proto",
+		Filename:      "annotations.proto",
 	},
 	{
 		ExtendedType:  (*descriptorpb.EnumValueOptions)(nil),
@@ -115,7 +115,7 @@ var file_deprecation_proto_extTypes = []protoimpl.ExtensionInfo{
 		Field:         1194,
 		Name:          "deprecation.enum_value_deprecation_details",
 		Tag:           "bytes,1194,opt,name=enum_value_deprecation_details",
-		Filename:      "deprecation.proto",
+		Filename:      "annotations.proto",
 	},
 }
 
@@ -125,7 +125,7 @@ var (
 	// Used along with `option deprecated = true`.
 	//
 	// optional deprecation.DeprecationDetails service_deprecation_details = 1194;
-	E_ServiceDeprecationDetails = &file_deprecation_proto_extTypes[0]
+	E_ServiceDeprecationDetails = &file_annotations_proto_extTypes[0]
 )
 
 // Extension fields to descriptorpb.MethodOptions.
@@ -134,7 +134,7 @@ var (
 	// Used along with `option deprecated = true`.
 	//
 	// optional deprecation.DeprecationDetails method_deprecation_details = 1194;
-	E_MethodDeprecationDetails = &file_deprecation_proto_extTypes[1]
+	E_MethodDeprecationDetails = &file_annotations_proto_extTypes[1]
 )
 
 // Extension fields to descriptorpb.MessageOptions.
@@ -143,7 +143,7 @@ var (
 	// Used along with `option deprecated = true`.
 	//
 	// optional deprecation.DeprecationDetails message_deprecation_details = 1194;
-	E_MessageDeprecationDetails = &file_deprecation_proto_extTypes[2]
+	E_MessageDeprecationDetails = &file_annotations_proto_extTypes[2]
 )
 
 // Extension fields to descriptorpb.FieldOptions.
@@ -152,7 +152,7 @@ var (
 	// Used along with `[deprecated = true]`.
 	//
 	// optional deprecation.DeprecationDetails field_deprecation_details = 1194;
-	E_FieldDeprecationDetails = &file_deprecation_proto_extTypes[3]
+	E_FieldDeprecationDetails = &file_annotations_proto_extTypes[3]
 )
 
 // Extension fields to descriptorpb.EnumValueOptions.
@@ -161,14 +161,14 @@ var (
 	// Used along with `[deprecated = true]`.
 	//
 	// optional deprecation.DeprecationDetails enum_value_deprecation_details = 1194;
-	E_EnumValueDeprecationDetails = &file_deprecation_proto_extTypes[4]
+	E_EnumValueDeprecationDetails = &file_annotations_proto_extTypes[4]
 )
 
-var File_deprecation_proto protoreflect.FileDescriptor
+var File_annotations_proto protoreflect.FileDescriptor
 
-const file_deprecation_proto_rawDesc = "" +
+const file_annotations_proto_rawDesc = "" +
 	"\n" +
-	"\x11deprecation.proto\x12\vdeprecation\x1a google/protobuf/descriptor.proto\"Y\n" +
+	"\x11annotations.proto\x12\vdeprecation\x1a google/protobuf/descriptor.proto\"Y\n" +
 	"\x12DeprecationDetails\x12!\n" +
 	"\feffective_at\x18\x01 \x01(\tR\veffectiveAt\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription:\x81\x01\n" +
@@ -177,22 +177,22 @@ const file_deprecation_proto_rawDesc = "" +
 	"\x1bmessage_deprecation_details\x12\x1f.google.protobuf.MessageOptions\x18\xaa\t \x01(\v2\x1f.deprecation.DeprecationDetailsR\x19messageDeprecationDetails:{\n" +
 	"\x19field_deprecation_details\x12\x1d.google.protobuf.FieldOptions\x18\xaa\t \x01(\v2\x1f.deprecation.DeprecationDetailsR\x17fieldDeprecationDetails:\x88\x01\n" +
 	"\x1eenum_value_deprecation_details\x12!.google.protobuf.EnumValueOptions\x18\xaa\t \x01(\v2\x1f.deprecation.DeprecationDetailsR\x1benumValueDeprecationDetailsB\xa4\x01\n" +
-	"\x0fcom.deprecationB\x10DeprecationProtoP\x01Z3github.com/belo4ya/grpc-api-deprecation/deprecation\xa2\x02\x03DXX\xaa\x02\vDeprecation\xca\x02\vDeprecation\xe2\x02\x17Deprecation\\GPBMetadata\xea\x02\vDeprecationb\x06proto3"
+	"\x0fcom.deprecationB\x10AnnotationsProtoP\x01Z3github.com/belo4ya/grpc-api-deprecation/deprecation\xa2\x02\x03DXX\xaa\x02\vDeprecation\xca\x02\vDeprecation\xe2\x02\x17Deprecation\\GPBMetadata\xea\x02\vDeprecationb\x06proto3"
 
 var (
-	file_deprecation_proto_rawDescOnce sync.Once
-	file_deprecation_proto_rawDescData []byte
+	file_annotations_proto_rawDescOnce sync.Once
+	file_annotations_proto_rawDescData []byte
 )
 
-func file_deprecation_proto_rawDescGZIP() []byte {
-	file_deprecation_proto_rawDescOnce.Do(func() {
-		file_deprecation_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_deprecation_proto_rawDesc), len(file_deprecation_proto_rawDesc)))
+func file_annotations_proto_rawDescGZIP() []byte {
+	file_annotations_proto_rawDescOnce.Do(func() {
+		file_annotations_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_annotations_proto_rawDesc), len(file_annotations_proto_rawDesc)))
 	})
-	return file_deprecation_proto_rawDescData
+	return file_annotations_proto_rawDescData
 }
 
-var file_deprecation_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
-var file_deprecation_proto_goTypes = []any{
+var file_annotations_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_annotations_proto_goTypes = []any{
 	(*DeprecationDetails)(nil),            // 0: deprecation.DeprecationDetails
 	(*descriptorpb.ServiceOptions)(nil),   // 1: google.protobuf.ServiceOptions
 	(*descriptorpb.MethodOptions)(nil),    // 2: google.protobuf.MethodOptions
@@ -200,7 +200,7 @@ var file_deprecation_proto_goTypes = []any{
 	(*descriptorpb.FieldOptions)(nil),     // 4: google.protobuf.FieldOptions
 	(*descriptorpb.EnumValueOptions)(nil), // 5: google.protobuf.EnumValueOptions
 }
-var file_deprecation_proto_depIdxs = []int32{
+var file_annotations_proto_depIdxs = []int32{
 	1,  // 0: deprecation.service_deprecation_details:extendee -> google.protobuf.ServiceOptions
 	2,  // 1: deprecation.method_deprecation_details:extendee -> google.protobuf.MethodOptions
 	3,  // 2: deprecation.message_deprecation_details:extendee -> google.protobuf.MessageOptions
@@ -218,27 +218,27 @@ var file_deprecation_proto_depIdxs = []int32{
 	0,  // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_deprecation_proto_init() }
-func file_deprecation_proto_init() {
-	if File_deprecation_proto != nil {
+func init() { file_annotations_proto_init() }
+func file_annotations_proto_init() {
+	if File_annotations_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_deprecation_proto_rawDesc), len(file_deprecation_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_annotations_proto_rawDesc), len(file_annotations_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   1,
 			NumExtensions: 5,
 			NumServices:   0,
 		},
-		GoTypes:           file_deprecation_proto_goTypes,
-		DependencyIndexes: file_deprecation_proto_depIdxs,
-		MessageInfos:      file_deprecation_proto_msgTypes,
-		ExtensionInfos:    file_deprecation_proto_extTypes,
+		GoTypes:           file_annotations_proto_goTypes,
+		DependencyIndexes: file_annotations_proto_depIdxs,
+		MessageInfos:      file_annotations_proto_msgTypes,
+		ExtensionInfos:    file_annotations_proto_extTypes,
 	}.Build()
-	File_deprecation_proto = out.File
-	file_deprecation_proto_goTypes = nil
-	file_deprecation_proto_depIdxs = nil
+	File_annotations_proto = out.File
+	file_annotations_proto_goTypes = nil
+	file_annotations_proto_depIdxs = nil
 }

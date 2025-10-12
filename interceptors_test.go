@@ -808,7 +808,7 @@ func TestTestUnaryServerInterceptor__maxItemsPerCollection(t *testing.T) {
 				&pb.Simple{FieldDeprecated: 1},
 			)},
 			callAssert: func(assertHit func(prometheus.Collector)) {
-				c := hitMaxItemsPerCollection.WithLabelValues(service, method, "messages", "repeated", strconv.Itoa(maxItemsPerCollection))
+				c := hitMaxItemsPerCollection.WithLabelValues("unary", service, method, "messages", "repeated", strconv.Itoa(maxItemsPerCollection))
 				assertHit(c)
 			},
 		},
@@ -822,7 +822,7 @@ func TestTestUnaryServerInterceptor__maxItemsPerCollection(t *testing.T) {
 				return msg
 			}(),
 			callAssert: func(assertHit func(prometheus.Collector)) {
-				c := hitMaxItemsPerCollection.WithLabelValues(service, method, "messages", "map", strconv.Itoa(maxItemsPerCollection))
+				c := hitMaxItemsPerCollection.WithLabelValues("unary", service, method, "messages", "map", strconv.Itoa(maxItemsPerCollection))
 				assertHit(c)
 			},
 		},
