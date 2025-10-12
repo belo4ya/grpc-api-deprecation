@@ -1,0 +1,42 @@
+name: Tests
+
+on:
+  push:
+    branches: ['main']
+    paths:
+      - '**.go'
+      - '**go.mod'
+      - '**go.sum'
+      - '**go.work'
+      - '**go.work.sum'
+  pull_request:
+    paths:
+      - '**.go'
+      - '**go.mod'
+      - '**go.sum'
+      - '**go.work'
+      - '**go.work.sum'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go:
+          - '1.24'
+          - 'stable'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "${{ matrix.go }}"
+
+      - name: Build
+        run: make build
+      - name: Test
+        run: make test-cov
+
+      - uses: codecov/codecov-action@v5
+        with:
+          file: ./coverage/cover.out
+        if: matrix.go == '1.24'

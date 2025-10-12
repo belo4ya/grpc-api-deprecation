@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        type: string
+        description: 'Tag (eg: v1.2.3)'
+        required: true
+      prerelease:
+        type: boolean
+        description: 'Prerelease is a indicator of whether or not is a prerelease'
+        default: false
+        required: false
+
+jobs:
+  release:
+    if: github.triggering_actor == 'belo4ya'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.20'
+
+      - name: Test
+        run: make test
+
+      # remove tests in order to clean dependencies
+      - name: Remove xxx_test.go files
+        run: rm -rf *_test.go
+
+      # cleanup test dependencies
+      - name: Cleanup dependencies
+        run: go mod tidy
+
+      - name: List files
+        run: tree -Cfi
+      - name: Write new go.mod into logs
+        run: cat go.mod
+      - name: Write new go.sum into logs
+        run: cat go.sum
+
+      - name: Create tag
+        run: |
+          git config --global user.name '${{ github.triggering_actor }}'
+          git config --global user.email "${{ github.triggering_actor}}@users.noreply.github.com"
+
+          git add .
+          git commit --allow-empty -m 'release ${{ inputs.tag }}'
+          git tag ${{ inputs.tag }}
+          git push origin ${{ inputs.tag }}
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ inputs.tag }}
+          tag_name: ${{ inputs.tag }}
+          prerelease: ${{ inputs.prerelease }}
+          generate_release_notes: true
