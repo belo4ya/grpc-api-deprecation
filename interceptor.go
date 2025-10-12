@@ -13,13 +13,12 @@ import (
 // Metrics represents a collection of metrics to be registered on a
 // Prometheus metrics registry for a gRPC server.
 type Metrics struct {
-	cfg *config
+	cfg         *config
+	extraLabels compiledLabels
+	exemplar    compiledLabels
 
 	methodReporter *methodReporter
 	fieldReporter  *fieldReporter
-
-	extraLabels compiledLabels
-	exemplar    compiledLabels
 
 	deprecatedMethodUsed *prometheus.CounterVec
 	deprecatedFieldUsed  *prometheus.CounterVec
@@ -43,10 +42,10 @@ func NewMetrics(opts ...Option) *Metrics {
 
 	return &Metrics{
 		cfg:            cfg,
-		methodReporter: newMethodReporter(),
-		fieldReporter:  newFieldReporter(cfg.seedDesc),
 		extraLabels:    extraLabels,
 		exemplar:       cfg.exemplar.compile(),
+		methodReporter: newMethodReporter(),
+		fieldReporter:  newFieldReporter(cfg.seedDesc),
 		deprecatedMethodUsed: prometheus.NewCounterVec(
 			cfg.counterOpts.apply(prometheus.CounterOpts{
 				Name: "grpc_deprecated_method_used_total",
