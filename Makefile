@@ -22,7 +22,7 @@ test-cov:
 
 .PHONY: bench
 bench:
-	go test -bench=. .
+	go test -bench=. -benchmem .
 
 .PHONY: all
 all: lint build test-cov bench

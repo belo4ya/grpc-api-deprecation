@@ -41,7 +41,7 @@ func NewMetrics(opts ...Option) *Metrics {
 	defaultLabels := []string{"grpc_type", "grpc_service", "grpc_method"}
 
 	extraLabels := cfg.extraLabels.compile()
-	methodLabels := append(defaultLabels, extraLabels.fieldLabels...)
+	methodLabels := append(defaultLabels, extraLabels.methodLabels...)
 	fieldLabels := append(append(defaultLabels, "field", "field_presence"), extraLabels.fieldLabels...)
 	enumLabels := append(append(defaultLabels, "field", "enum_value", "enum_number"), extraLabels.enumLabels...)
 
@@ -71,12 +71,14 @@ func NewMetrics(opts ...Option) *Metrics {
 
 // Describe implements prometheus.Collector.
 func (m *Metrics) Describe(ch chan<- *prometheus.Desc) {
+	m.deprecatedMethodUsed.Describe(ch)
 	m.deprecatedFieldUsed.Describe(ch)
 	m.deprecatedEnumUsed.Describe(ch)
 }
 
 // Collect implements prometheus.Collector.
 func (m *Metrics) Collect(ch chan<- prometheus.Metric) {
+	m.deprecatedMethodUsed.Collect(ch)
 	m.deprecatedFieldUsed.Collect(ch)
 	m.deprecatedEnumUsed.Collect(ch)
 }
@@ -190,7 +192,7 @@ func resolvePrewarm(seedDesc []grpc.ServiceDesc) ([]protoreflect.ServiceDescript
 	var msgSeed []protoreflect.MessageDescriptor
 
 	seenSvc := make(map[protoreflect.FullName]bool, len(seedDesc))
-	seenMsg := map[protoreflect.FullName]bool{}
+	seenMsg := make(map[protoreflect.FullName]bool)
 
 	for _, raw := range seedDesc {
 		desc, err := protoregistry.GlobalFiles.FindDescriptorByName(protoreflect.FullName(raw.ServiceName))
@@ -211,7 +213,7 @@ func resolvePrewarm(seedDesc []grpc.ServiceDesc) ([]protoreflect.ServiceDescript
 		for i := 0; i < methods.Len(); i++ {
 			msg := methods.Get(i).Input()
 			if !seenMsg[msg.FullName()] {
-				seenSvc[msg.FullName()] = true
+				seenMsg[msg.FullName()] = true
 				msgSeed = append(msgSeed, msg)
 			}
 		}
