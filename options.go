@@ -37,7 +37,12 @@ type Label struct {
 // LabelValueFunc extracts a label value from the current call context,
 // request message, and the deprecated field descriptor.
 // Implementations should be fast and allocation-conscious.
-type LabelValueFunc func(ctx context.Context, msg proto.Message, meta CallMeta, fd protoreflect.FieldDescriptor) string
+type LabelValueFunc func(
+	ctx context.Context,
+	msg proto.Message,
+	meta CallMeta,
+	md protoreflect.MethodDescriptor, fd protoreflect.FieldDescriptor,
+) string
 
 type Option func(*config)
 

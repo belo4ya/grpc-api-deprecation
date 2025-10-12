@@ -121,25 +121,26 @@ func (m *Metrics) observe(ctx context.Context, req proto.Message, meta CallMeta)
 
 	// TODO: sync.Pool can slightly speed up the onDeprecated functions.
 
-	if m.methodReporter.IsDeprecated(meta.FullMethod) {
+	if m.methodReporter.Report(meta.FullMethod, func(md protoreflect.MethodDescriptor) {
 		base := []string{typ, service, method}
-		lvs := m.buildLabelValues(base, m.extraLabels.methodValues, ctx, req, meta, nil)
-		exemplar := m.buildExemplar(m.exemplar.methodLabels, m.exemplar.methodValues, ctx, req, meta, nil)
+		lvs := m.buildLabelValues(base, m.extraLabels.methodValues, ctx, req, meta, md, nil)
+		exemplar := m.buildExemplar(m.exemplar.methodLabels, m.exemplar.methodValues, ctx, req, meta, md, nil)
 		m.increment(m.deprecatedMethodUsed, lvs, exemplar)
+	}) {
 		return
 	}
 
 	m.fieldReporter.Report(req.ProtoReflect(), meta,
 		func(fd protoreflect.FieldDescriptor, fieldFullName, fieldPresence string) {
 			base := []string{typ, service, method, fieldFullName, fieldPresence}
-			lvs := m.buildLabelValues(base, m.extraLabels.fieldValues, ctx, req, meta, fd)
-			exemplar := m.buildExemplar(m.exemplar.fieldLabels, m.exemplar.fieldValues, ctx, req, meta, fd)
+			lvs := m.buildLabelValues(base, m.extraLabels.fieldValues, ctx, req, meta, nil, fd)
+			exemplar := m.buildExemplar(m.exemplar.fieldLabels, m.exemplar.fieldValues, ctx, req, meta, nil, fd)
 			m.increment(m.deprecatedFieldUsed, lvs, exemplar)
 		},
 		func(fd protoreflect.FieldDescriptor, fieldFullName, enumValue string, enumNumber int) {
 			base := []string{typ, service, method, fieldFullName, enumValue, strconv.Itoa(enumNumber)}
-			lvs := m.buildLabelValues(base, m.extraLabels.enumValues, ctx, req, meta, fd)
-			exemplar := m.buildExemplar(m.exemplar.enumLabels, m.exemplar.enumValues, ctx, req, meta, fd)
+			lvs := m.buildLabelValues(base, m.extraLabels.enumValues, ctx, req, meta, nil, fd)
+			exemplar := m.buildExemplar(m.exemplar.enumLabels, m.exemplar.enumValues, ctx, req, meta, nil, fd)
 			m.increment(m.deprecatedEnumUsed, lvs, exemplar)
 		})
 }
@@ -147,12 +148,12 @@ func (m *Metrics) observe(ctx context.Context, req proto.Message, meta CallMeta)
 func (m *Metrics) buildLabelValues(
 	base []string,
 	valFuncs []LabelValueFunc,
-	ctx context.Context, req proto.Message, meta CallMeta, fd protoreflect.FieldDescriptor,
+	ctx context.Context, req proto.Message, meta CallMeta, md protoreflect.MethodDescriptor, fd protoreflect.FieldDescriptor,
 ) []string {
 	lvs := make([]string, 0, len(base)+len(valFuncs))
 	lvs = append(lvs, base...)
 	for _, valF := range valFuncs {
-		lvs = append(lvs, valF(ctx, req, meta, fd))
+		lvs = append(lvs, valF(ctx, req, meta, md, fd))
 	}
 	return lvs
 }
@@ -160,14 +161,14 @@ func (m *Metrics) buildLabelValues(
 func (m *Metrics) buildExemplar(
 	labels []string,
 	valFuncs []LabelValueFunc,
-	ctx context.Context, req proto.Message, meta CallMeta, fd protoreflect.FieldDescriptor,
+	ctx context.Context, req proto.Message, meta CallMeta, md protoreflect.MethodDescriptor, fd protoreflect.FieldDescriptor,
 ) prometheus.Labels {
 	if len(labels) == 0 {
 		return nil
 	}
 	exemplar := make(prometheus.Labels, len(labels))
 	for i, label := range labels {
-		exemplar[label] = valFuncs[i](ctx, req, meta, fd)
+		exemplar[label] = valFuncs[i](ctx, req, meta, md, fd)
 	}
 	return exemplar
 }

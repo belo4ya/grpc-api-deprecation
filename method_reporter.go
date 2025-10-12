@@ -1,6 +1,7 @@
 package apideprecation
 
 import (
+	"strings"
 	"sync"
 
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -9,42 +10,65 @@ import (
 )
 
 type methodReporter struct {
-	cache sync.Map // string[bool] (fullMethod -> isDeprecated)
+	cache sync.Map // fullMethod -> methodCacheEntry
 }
 
 func newMethodReporter(seedDesc []protoreflect.ServiceDescriptor) *methodReporter {
 	r := &methodReporter{}
 	for _, sd := range seedDesc {
+		service := string(sd.FullName())
 		methods := sd.Methods()
 		for i := 0; i < methods.Len(); i++ {
-			r.IsDeprecated(string(methods.Get(i).FullName()))
+			method := string(methods.Get(i).Name())
+			r.getOrResolve("/" + service + "/" + method)
 		}
 	}
 	return r
 }
 
-func (r *methodReporter) IsDeprecated(fullMethod string) bool {
-	if v, ok := r.cache.Load(fullMethod); ok {
-		return v.(bool)
+func (r *methodReporter) Report(fullMethod string, onDeprecated func(md protoreflect.MethodDescriptor)) bool {
+	if entry := r.getOrResolve(fullMethod); entry.deprecated {
+		onDeprecated(entry.md)
+		return true
 	}
-	deprecated := r.isDeprecated(fullMethod)
-	r.cache.Store(fullMethod, deprecated)
-	return deprecated
+	return false
 }
 
-func (r *methodReporter) isDeprecated(fullMethod string) bool {
-	desc, err := protoregistry.GlobalFiles.FindDescriptorByName(protoreflect.FullName(fullMethod))
+type methodCacheEntry struct {
+	deprecated bool
+	md         protoreflect.MethodDescriptor
+}
+
+func (r *methodReporter) getOrResolve(fullMethod string) methodCacheEntry {
+	if v, ok := r.cache.Load(fullMethod); ok {
+		return v.(methodCacheEntry)
+	}
+	entry := r.resolveDescriptor(fullMethod)
+	r.cache.Store(fullMethod, entry)
+	return entry
+}
+
+func (r *methodReporter) resolveDescriptor(fullMethod string) methodCacheEntry {
+	desc, err := protoregistry.GlobalFiles.FindDescriptorByName(r.fullMethodToName(fullMethod))
 	if err != nil {
-		return false
+		return methodCacheEntry{deprecated: false}
 	}
 	md, ok := desc.(protoreflect.MethodDescriptor)
 	if !ok {
-		return false
+		return methodCacheEntry{deprecated: false}
 	}
-	return r.resolveMethod(md)
+	if !r.isMethodOrServiceDeprecated(md) {
+		return methodCacheEntry{deprecated: false}
+	}
+	return methodCacheEntry{deprecated: true, md: md}
 }
 
-func (r *methodReporter) resolveMethod(md protoreflect.MethodDescriptor) bool {
+func (r *methodReporter) fullMethodToName(fullMethod string) protoreflect.FullName {
+	i := strings.LastIndexByte(fullMethod, '/')
+	return protoreflect.FullName(fullMethod[1:i] + "." + fullMethod[i+1:])
+}
+
+func (r *methodReporter) isMethodOrServiceDeprecated(md protoreflect.MethodDescriptor) bool {
 	if isMethodDeprecated(md) {
 		return true
 	}
