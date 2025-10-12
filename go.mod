@@ -11,7 +11,6 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/samber/lo v1.51.0
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/exp v0.0.0-20240325151524-a685a6edb6d8
 	google.golang.org/genproto/googleapis/api v0.0.0-20251002232023-7c0ddcbb5797
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251002232023-7c0ddcbb5797
 	google.golang.org/grpc v1.75.1

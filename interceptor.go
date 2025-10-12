@@ -4,13 +4,14 @@ import (
 	"context"
 	"strconv"
 
-	_ "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
+// Metrics represents a collection of metrics to be registered on a
+// Prometheus metrics registry for a gRPC server.
 type Metrics struct {
 	cfg     *config
 	builder *planBuilder
@@ -22,6 +23,8 @@ type Metrics struct {
 	deprecatedEnumUsed  *prometheus.CounterVec
 }
 
+// NewMetrics returns a new Metrics object that has server interceptor methods.
+// NOTE: Remember to register Metrics object by using prometheus registry, e.g. prometheus.MustRegister(metrics).
 func NewMetrics(opts ...Option) *Metrics {
 	cfg := &config{}
 	for _, opt := range opts {
@@ -39,27 +42,33 @@ func NewMetrics(opts ...Option) *Metrics {
 		builder:     newPlanBuilder(cfg.seedDesc),
 		extraLabels: extraLabels,
 		exemplar:    cfg.exemplar.compile(),
-		deprecatedFieldUsed: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Name: "grpc_deprecated_field_used_total",
-			Help: "Count of requests using deprecated fields (proto field option deprecated=true).",
-		}, fieldLabels),
-		deprecatedEnumUsed: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Name: "grpc_deprecated_enum_used_total",
-			Help: "Count of requests using deprecated enum values (proto enum value option deprecated=true).",
-		}, enumLabels),
+		deprecatedFieldUsed: prometheus.NewCounterVec(
+			cfg.counterOpts.apply(prometheus.CounterOpts{
+				Name: "grpc_deprecated_field_used_total",
+				Help: "Count of requests using deprecated fields (proto field option deprecated=true).",
+			}), fieldLabels),
+		deprecatedEnumUsed: prometheus.NewCounterVec(
+			cfg.counterOpts.apply(prometheus.CounterOpts{
+				Name: "grpc_deprecated_enum_used_total",
+				Help: "Count of requests using deprecated enum values (proto enum value option deprecated=true).",
+			}), enumLabels),
 	}
 }
 
+// Describe implements prometheus.Collector.
 func (m *Metrics) Describe(ch chan<- *prometheus.Desc) {
 	m.deprecatedFieldUsed.Describe(ch)
 	m.deprecatedEnumUsed.Describe(ch)
 }
 
+// Collect implements prometheus.Collector.
 func (m *Metrics) Collect(ch chan<- prometheus.Metric) {
 	m.deprecatedFieldUsed.Collect(ch)
 	m.deprecatedEnumUsed.Collect(ch)
 }
 
+// UnaryServerInterceptor is a gRPC server-side interceptor
+// that provides deprecated API usage tracking for Unary RPCs.
 func (m *Metrics) UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		if msg, ok := req.(proto.Message); ok {
@@ -69,6 +78,8 @@ func (m *Metrics) UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	}
 }
 
+// StreamServerInterceptor is a gRPC server-side interceptor
+// that provides deprecated API usage tracking for Streaming RPCs.
 func (m *Metrics) StreamServerInterceptor() grpc.StreamServerInterceptor {
 	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		return handler(srv, &wrappedServerStream{ServerStream: ss, metrics: m, meta: newCallMeta(info.FullMethod, info)})
