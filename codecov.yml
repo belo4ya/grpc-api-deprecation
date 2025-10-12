@@ -3,4 +3,4 @@ ignore:
   - "**/*.pb.go"
 coverage:
   round: "nearest"
-  range: "70..100"
+  range: "70..90"
