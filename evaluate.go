@@ -87,7 +87,7 @@ func presenceKind(fd protoreflect.FieldDescriptor) string {
 	return "implicit"
 }
 
-// enumNode evaluates a terminal (leaf) field or collection item that contains deprecated Enum value.
+// enumNode evaluates a terminal (leaf) field or collection item that contains deprecated Enum values.
 type enumNode struct {
 	fd            protoreflect.FieldDescriptor
 	deprecated    map[protoreflect.EnumNumber]protoreflect.Name

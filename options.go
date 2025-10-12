@@ -34,9 +34,10 @@ type Label struct {
 	Value LabelValueFunc
 }
 
-// LabelValueFunc extracts a label value from the current call context,
-// request message, and the deprecated field descriptor.
-// Implementations should be fast and allocation-conscious.
+// LabelValueFunc extracts a label or exemplar value from the current call
+// context, request message, and resolved descriptors. Implementations should be
+// fast and allocation-conscious. Method or field descriptors may be nil when
+// they do not apply to the current metric.
 type LabelValueFunc func(
 	ctx context.Context,
 	msg proto.Message,
@@ -46,15 +47,16 @@ type LabelValueFunc func(
 
 type Option func(*config)
 
-// WithExtraLabels sets additional metric labels for deprecated field and enum
-// observations. Labels are appended after the default labels in the order they are provided.
+// WithExtraLabels appends user-defined labels to deprecated method, field, and
+// enum observations. Labels are appended after the defaults in the order they
+// are provided.
 func WithExtraLabels(extraLabels LabelSet) Option {
 	return func(c *config) {
 		c.extraLabels = extraLabels
 	}
 }
 
-// WithExemplar sets exemplar label extractors for deprecated field and enum
+// WithExemplar sets exemplar extractors for deprecated method, field, and enum
 // observations. Exemplars are added only if supported by the Counter.
 func WithExemplar(exemplar ExemplarSet) Option {
 	return func(c *config) {
@@ -62,8 +64,9 @@ func WithExemplar(exemplar ExemplarSet) Option {
 	}
 }
 
-// WithPrewarm allows warming up the Metrics cache with known gRPC services.
-// The given descriptors are mapped to protobuf ServiceDescriptors and to all method input message descriptors.
+// WithPrewarm warms the Metrics caches with known gRPC services. The given
+// descriptors are mapped to protobuf ServiceDescriptors and to all method input
+// message descriptors to pre-populate method and field reporters.
 // Notice: This API is EXPERIMENTAL and may be changed or removed in a later release.
 func WithPrewarm(services ...grpc.ServiceDesc) Option {
 	return func(c *config) {

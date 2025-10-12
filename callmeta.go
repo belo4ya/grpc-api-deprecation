@@ -5,6 +5,7 @@ import (
 	"google.golang.org/grpc"
 )
 
+// CallMeta contains parsed gRPC method metadata used when labeling metrics.
 type CallMeta struct {
 	FullMethod string
 	Type       string

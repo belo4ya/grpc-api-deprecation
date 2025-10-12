@@ -11,8 +11,8 @@ import (
 	"google.golang.org/protobuf/reflect/protoregistry"
 )
 
-// Metrics represents a collection of metrics to be registered on a
-// Prometheus metrics registry for a gRPC server.
+// Metrics exposes Prometheus counters that track deprecated gRPC API usage.
+// It also provides the server interceptors that update those counters.
 type Metrics struct {
 	cfg         *config
 	extraLabels compiledLabels
@@ -26,7 +26,7 @@ type Metrics struct {
 	deprecatedEnumUsed   *prometheus.CounterVec
 }
 
-// NewMetrics returns a new Metrics object that has server interceptor methods.
+// NewMetrics builds a Metrics collector with unary and stream interceptors.
 // NOTE: Remember to register Metrics object by using prometheus registry, e.g. prometheus.MustRegister(metrics).
 func NewMetrics(opts ...Option) *Metrics {
 	cfg := &config{}
@@ -81,8 +81,8 @@ func (m *Metrics) Collect(ch chan<- prometheus.Metric) {
 	m.deprecatedEnumUsed.Collect(ch)
 }
 
-// UnaryServerInterceptor is a gRPC server-side interceptor
-// that provides deprecated API usage tracking for Unary RPCs.
+// UnaryServerInterceptor returns a server interceptor that records deprecated
+// RPC method, field, and enum usage for unary calls.
 func (m *Metrics) UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		if msg, ok := req.(proto.Message); ok {
@@ -92,8 +92,8 @@ func (m *Metrics) UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	}
 }
 
-// StreamServerInterceptor is a gRPC server-side interceptor
-// that provides deprecated API usage tracking for Streaming RPCs.
+// StreamServerInterceptor returns a server interceptor that records deprecated
+// RPC method, field, and enum usage for streaming calls.
 func (m *Metrics) StreamServerInterceptor() grpc.StreamServerInterceptor {
 	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		return handler(srv, &wrappedServerStream{ServerStream: ss, metrics: m, meta: newCallMeta(info.FullMethod, info)})
