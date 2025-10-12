@@ -26,6 +26,15 @@
   descriptor caching — see [Performance](#-performance) for benchmark numbers and
   optimization details.
 
+Three counters are exported; all use the base labels `grpc_type`, `grpc_service`, and `grpc_method`:
+
+| Name                                                             | Additional labels                                           | Description                                                                                    |
+|------------------------------------------------------------------|-------------------------------------------------------------|------------------------------------------------------------------------------------------------|
+| `grpc_deprecated_method_used_total`                              | *(defaults + extra method labels)*                          | Deprecated RPC method was invoked (method or service marked deprecated).                       |
+| `grpc_deprecated_field_used_total`                               | `field`, `field_presence`, *(extra field labels)*           | Deprecated field with `deprecated = true` was populated. Presence is `explicit` or `implicit`. |
+| `grpc_deprecated_enum_used_total`                                | `field`, `enum_value`, `enum_number`, *(extra enum labels)* | Deprecated enum value was observed in the request payload.                                     |
+| `grpc_deprecated_field_usage_hit_max_items_per_collection_total` | `field`, `collection_type`, `max_items`                     | Scanner bailed out after hitting the collection safety cap.                                    |
+
 ## 🚀 Install
 
 ```sh
