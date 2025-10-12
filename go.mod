@@ -2,16 +2,14 @@ module github.com/belo4ya/grpc-api-deprecation
 
 go 1.24.0
 
-toolchain go1.24.7
-
 require (
 	github.com/golang/protobuf v1.5.4
 	github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.1.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.2
 	github.com/prometheus/client_golang v1.23.2
-	github.com/samber/lo v1.51.0
+	github.com/samber/lo v1.52.0
 	github.com/stretchr/testify v1.11.1
-	google.golang.org/genproto/googleapis/api v0.0.0-20251002232023-7c0ddcbb5797
+	google.golang.org/genproto/googleapis/api v0.0.0-20251007200510-49b9836ed3ff
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251007200510-49b9836ed3ff
 	google.golang.org/grpc v1.76.0
 	google.golang.org/protobuf v1.36.10
