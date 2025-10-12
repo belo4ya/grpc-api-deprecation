@@ -6,6 +6,10 @@ lint:
 lintf:
 	golangci-lint run --fix --timeout 60s --max-same-issues 50 ./...
 
+.PHONY: build
+build:
+	go build ./...
+
 .PHONY: test
 test:
 	go test -race -v ./...
@@ -21,6 +25,6 @@ bench:
 	go test -bench=. .
 
 .PHONY: all
-all: lint test-cov bench
+all: lint build test-cov bench
 
 .DEFAULT_GOAL := all
