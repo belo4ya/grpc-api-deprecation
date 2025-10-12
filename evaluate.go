@@ -9,10 +9,10 @@ type evaluator interface {
 }
 
 type evalContext struct {
-	onDeprecatedField onDeprecatedFieldFunc
-	onDeprecatedEnum  onDeprecatedEnumFunc
-	fieldPath         *fieldPath
-	service, method   string
+	onDeprecatedField    onDeprecatedFieldFunc
+	onDeprecatedEnum     onDeprecatedEnumFunc
+	fieldPath            *fieldPath
+	typ, service, method string
 }
 
 type (
@@ -30,7 +30,7 @@ func (p *evalPlan) Append(eval evaluator) {
 
 func (p *evalPlan) EvalMessage(
 	msg protoreflect.Message,
-	service, method string,
+	meta callMeta,
 	onDeprecatedField onDeprecatedFieldFunc,
 	onDeprecatedEnum onDeprecatedEnumFunc,
 ) {
@@ -40,8 +40,9 @@ func (p *evalPlan) EvalMessage(
 		onDeprecatedField: onDeprecatedField,
 		onDeprecatedEnum:  onDeprecatedEnum,
 		fieldPath:         fp,
-		service:           service,
-		method:            method,
+		typ:               meta.Type,
+		service:           meta.Service,
+		method:            meta.Method,
 	}, msg, protoreflect.Value{})
 }
 
@@ -179,7 +180,7 @@ func (n *listNode) Eval(evalCtx evalContext, msg protoreflect.Message, _ protore
 	list := msg.Get(n.fd).List()
 	for i := range list.Len() {
 		if i >= maxItemsPerCollection {
-			hitMaxItemsPerCollectionInc(evalCtx.service, evalCtx.method, evalCtx.fieldPath.Render(), "repeated", maxItemsPerCollection)
+			hitMaxItemsPerCollectionInc(evalCtx.typ, evalCtx.service, evalCtx.method, evalCtx.fieldPath.Render(), "repeated", maxItemsPerCollection)
 			break
 		}
 		n.evalItemValue(evalCtx, list.Get(i))
@@ -225,7 +226,7 @@ func (n *mapNode) Eval(evalCtx evalContext, msg protoreflect.Message, _ protoref
 	cnt := 0
 	msg.Get(n.fd).Map().Range(func(_ protoreflect.MapKey, v protoreflect.Value) bool {
 		if cnt >= maxItemsPerCollection {
-			hitMaxItemsPerCollectionInc(evalCtx.service, evalCtx.method, evalCtx.fieldPath.Render(), "map", maxItemsPerCollection)
+			hitMaxItemsPerCollectionInc(evalCtx.typ, evalCtx.service, evalCtx.method, evalCtx.fieldPath.Render(), "map", maxItemsPerCollection)
 			return false
 		}
 		n.evalItemValue(evalCtx, v)

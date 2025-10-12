@@ -13,14 +13,17 @@ import (
 // Metrics represents a collection of metrics to be registered on a
 // Prometheus metrics registry for a gRPC server.
 type Metrics struct {
-	cfg     *config
-	builder *planBuilder
+	cfg *config
+
+	methodReporter *methodReporter
+	fieldReporter  *fieldReporter
 
 	extraLabels compiledLabels
 	exemplar    compiledLabels
 
-	deprecatedFieldUsed *prometheus.CounterVec
-	deprecatedEnumUsed  *prometheus.CounterVec
+	deprecatedMethodUsed *prometheus.CounterVec
+	deprecatedFieldUsed  *prometheus.CounterVec
+	deprecatedEnumUsed   *prometheus.CounterVec
 }
 
 // NewMetrics returns a new Metrics object that has server interceptor methods.
@@ -31,17 +34,24 @@ func NewMetrics(opts ...Option) *Metrics {
 		opt(cfg)
 	}
 
-	defaultLabels := []string{"grpc_type", "grpc_service", "grpc_method", "field"}
+	defaultLabels := []string{"grpc_type", "grpc_service", "grpc_method"}
 
 	extraLabels := cfg.extraLabels.compile()
-	fieldLabels := append(append(defaultLabels, "field_presence"), extraLabels.fieldLabels...)
-	enumLabels := append(append(defaultLabels, "enum_value", "enum_number"), extraLabels.enumLabels...)
+	methodLabels := append(defaultLabels, extraLabels.fieldLabels...)
+	fieldLabels := append(append(defaultLabels, "field", "field_presence"), extraLabels.fieldLabels...)
+	enumLabels := append(append(defaultLabels, "field", "enum_value", "enum_number"), extraLabels.enumLabels...)
 
 	return &Metrics{
-		cfg:         cfg,
-		builder:     newPlanBuilder(cfg.seedDesc),
-		extraLabels: extraLabels,
-		exemplar:    cfg.exemplar.compile(),
+		cfg:            cfg,
+		methodReporter: newMethodReporter(),
+		fieldReporter:  newFieldReporter(cfg.seedDesc),
+		extraLabels:    extraLabels,
+		exemplar:       cfg.exemplar.compile(),
+		deprecatedMethodUsed: prometheus.NewCounterVec(
+			cfg.counterOpts.apply(prometheus.CounterOpts{
+				Name: "grpc_deprecated_method_used_total",
+				Help: "Count of calls to deprecated RPC methods (proto field option deprecated=true).",
+			}), methodLabels),
 		deprecatedFieldUsed: prometheus.NewCounterVec(
 			cfg.counterOpts.apply(prometheus.CounterOpts{
 				Name: "grpc_deprecated_field_used_total",
@@ -105,11 +115,19 @@ func (s *wrappedServerStream) RecvMsg(m any) error {
 func (m *Metrics) observe(ctx context.Context, req proto.Message, meta callMeta) {
 	typ, service, method := meta.Type, meta.Service, meta.Method
 
+	methodDeprecated := m.methodReporter.Report(meta, func() {
+		base := []string{typ, service, method}
+		lvs := base
+		exemplar := map[string]string{}
+		m.increment(m.deprecatedMethodUsed, lvs, exemplar)
+	})
+	if methodDeprecated {
+		return
+	}
+
 	// TODO: sync.Pool can slightly speed up the onDeprecatedField and onDeprecatedEnum functions.
 
-	msg := req.ProtoReflect()
-	plan := m.builder.LoadOrBuild(msg.Descriptor())
-	plan.EvalMessage(msg, meta.Service, meta.Method,
+	m.fieldReporter.Report(req.ProtoReflect(), meta,
 		func(fd protoreflect.FieldDescriptor, fieldFullName, fieldPresence string) {
 			base := []string{typ, service, method, fieldFullName, fieldPresence}
 			lvs := m.buildLabelValues(base, m.extraLabels.fieldValues, ctx, req, fd)

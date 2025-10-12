@@ -64,7 +64,7 @@ func WithMessageDescriptors(descriptors ...protoreflect.MessageDescriptor) Optio
 	}
 }
 
-//func WithPrewarm(server reflection.ServiceInfoProvider) Option {
+//func WithPrewarm(servers ...reflection.ServiceInfoProvider) Option {
 //	// TODO: syntax sugar, which will be more useful than WithMessageDescriptors in most cases
 //	panic("implement me")
 //}
