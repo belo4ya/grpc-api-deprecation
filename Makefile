@@ -16,7 +16,11 @@ test-cov:
 	&& go test -race -v ./... -coverprofile=coverage/cover.out \
 	&& go tool cover -html=coverage/cover.out -o coverage/cover.html
 
+.PHONY: bench
+bench:
+	go test -bench=. .
+
 .PHONY: all
-all: lint test-cov
+all: lint test-cov bench
 
 .DEFAULT_GOAL := all
