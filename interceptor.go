@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoregistry"
 )
 
 // Metrics represents a collection of metrics to be registered on a
@@ -33,6 +34,10 @@ func NewMetrics(opts ...Option) *Metrics {
 		opt(cfg)
 	}
 
+	svcSeed, msgSeed := resolvePrewarm(cfg.seedDesc)
+	methodReporter := newMethodReporter(svcSeed)
+	fieldReporter := newFieldReporter(msgSeed)
+
 	defaultLabels := []string{"grpc_type", "grpc_service", "grpc_method"}
 
 	extraLabels := cfg.extraLabels.compile()
@@ -44,12 +49,12 @@ func NewMetrics(opts ...Option) *Metrics {
 		cfg:            cfg,
 		extraLabels:    extraLabels,
 		exemplar:       cfg.exemplar.compile(),
-		methodReporter: newMethodReporter(),
-		fieldReporter:  newFieldReporter(cfg.seedDesc),
+		methodReporter: methodReporter,
+		fieldReporter:  fieldReporter,
 		deprecatedMethodUsed: prometheus.NewCounterVec(
 			cfg.counterOpts.apply(prometheus.CounterOpts{
 				Name: "grpc_deprecated_method_used_total",
-				Help: "Count of calls to deprecated RPC methods (proto field option deprecated=true).",
+				Help: "Count of calls to deprecated RPC methods (proto method option deprecated=true).",
 			}), methodLabels),
 		deprecatedFieldUsed: prometheus.NewCounterVec(
 			cfg.counterOpts.apply(prometheus.CounterOpts{
@@ -98,7 +103,7 @@ func (m *Metrics) StreamServerInterceptor() grpc.StreamServerInterceptor {
 type wrappedServerStream struct {
 	grpc.ServerStream
 	metrics *Metrics
-	meta    callMeta
+	meta    CallMeta
 }
 
 func (s *wrappedServerStream) RecvMsg(m any) error {
@@ -111,32 +116,30 @@ func (s *wrappedServerStream) RecvMsg(m any) error {
 	return nil
 }
 
-func (m *Metrics) observe(ctx context.Context, req proto.Message, meta callMeta) {
+func (m *Metrics) observe(ctx context.Context, req proto.Message, meta CallMeta) {
 	typ, service, method := meta.Type, meta.Service, meta.Method
 
-	methodDeprecated := m.methodReporter.Report(meta, func() {
+	// TODO: sync.Pool can slightly speed up the onDeprecated functions.
+
+	if m.methodReporter.IsDeprecated(meta.FullMethod) {
 		base := []string{typ, service, method}
-		lvs := base
-		exemplar := map[string]string{}
+		lvs := m.buildLabelValues(base, m.extraLabels.methodValues, ctx, req, meta, nil)
+		exemplar := m.buildExemplar(m.exemplar.methodLabels, m.exemplar.methodValues, ctx, req, meta, nil)
 		m.increment(m.deprecatedMethodUsed, lvs, exemplar)
-	})
-	if methodDeprecated {
 		return
 	}
-
-	// TODO: sync.Pool can slightly speed up the onDeprecatedField and onDeprecatedEnum functions.
 
 	m.fieldReporter.Report(req.ProtoReflect(), meta,
 		func(fd protoreflect.FieldDescriptor, fieldFullName, fieldPresence string) {
 			base := []string{typ, service, method, fieldFullName, fieldPresence}
-			lvs := m.buildLabelValues(base, m.extraLabels.fieldValues, ctx, req, fd)
-			exemplar := m.buildExemplar(m.exemplar.fieldLabels, m.exemplar.fieldValues, ctx, req, fd)
+			lvs := m.buildLabelValues(base, m.extraLabels.fieldValues, ctx, req, meta, fd)
+			exemplar := m.buildExemplar(m.exemplar.fieldLabels, m.exemplar.fieldValues, ctx, req, meta, fd)
 			m.increment(m.deprecatedFieldUsed, lvs, exemplar)
 		},
 		func(fd protoreflect.FieldDescriptor, fieldFullName, enumValue string, enumNumber int) {
 			base := []string{typ, service, method, fieldFullName, enumValue, strconv.Itoa(enumNumber)}
-			lvs := m.buildLabelValues(base, m.extraLabels.enumValues, ctx, req, fd)
-			exemplar := m.buildExemplar(m.exemplar.enumLabels, m.exemplar.enumValues, ctx, req, fd)
+			lvs := m.buildLabelValues(base, m.extraLabels.enumValues, ctx, req, meta, fd)
+			exemplar := m.buildExemplar(m.exemplar.enumLabels, m.exemplar.enumValues, ctx, req, meta, fd)
 			m.increment(m.deprecatedEnumUsed, lvs, exemplar)
 		})
 }
@@ -144,12 +147,12 @@ func (m *Metrics) observe(ctx context.Context, req proto.Message, meta callMeta)
 func (m *Metrics) buildLabelValues(
 	base []string,
 	valFuncs []LabelValueFunc,
-	ctx context.Context, req proto.Message, fd protoreflect.FieldDescriptor,
+	ctx context.Context, req proto.Message, meta CallMeta, fd protoreflect.FieldDescriptor,
 ) []string {
 	lvs := make([]string, 0, len(base)+len(valFuncs))
 	lvs = append(lvs, base...)
 	for _, valF := range valFuncs {
-		lvs = append(lvs, valF(ctx, req, fd))
+		lvs = append(lvs, valF(ctx, req, meta, fd))
 	}
 	return lvs
 }
@@ -157,14 +160,14 @@ func (m *Metrics) buildLabelValues(
 func (m *Metrics) buildExemplar(
 	labels []string,
 	valFuncs []LabelValueFunc,
-	ctx context.Context, req proto.Message, fd protoreflect.FieldDescriptor,
+	ctx context.Context, req proto.Message, meta CallMeta, fd protoreflect.FieldDescriptor,
 ) prometheus.Labels {
 	if len(labels) == 0 {
 		return nil
 	}
 	exemplar := make(prometheus.Labels, len(labels))
 	for i, label := range labels {
-		exemplar[label] = valFuncs[i](ctx, req, fd)
+		exemplar[label] = valFuncs[i](ctx, req, meta, fd)
 	}
 	return exemplar
 }
@@ -177,19 +180,66 @@ func (m *Metrics) increment(c *prometheus.CounterVec, lvs []string, exemplar pro
 	}
 }
 
+func resolvePrewarm(seedDesc []grpc.ServiceDesc) ([]protoreflect.ServiceDescriptor, []protoreflect.MessageDescriptor) {
+	if len(seedDesc) == 0 {
+		return nil, nil
+	}
+
+	var svcSeed []protoreflect.ServiceDescriptor
+	var msgSeed []protoreflect.MessageDescriptor
+
+	seenSvc := make(map[protoreflect.FullName]bool, len(seedDesc))
+	seenMsg := map[protoreflect.FullName]bool{}
+
+	for _, raw := range seedDesc {
+		desc, err := protoregistry.GlobalFiles.FindDescriptorByName(protoreflect.FullName(raw.ServiceName))
+		if err != nil {
+			continue
+		}
+		sd, ok := desc.(protoreflect.ServiceDescriptor)
+		if !ok {
+			continue
+		}
+
+		if !seenSvc[sd.FullName()] {
+			seenSvc[sd.FullName()] = true
+			svcSeed = append(svcSeed, sd)
+		}
+
+		methods := sd.Methods()
+		for i := 0; i < methods.Len(); i++ {
+			msg := methods.Get(i).Input()
+			if !seenMsg[msg.FullName()] {
+				seenSvc[msg.FullName()] = true
+				msgSeed = append(msgSeed, msg)
+			}
+		}
+	}
+
+	return svcSeed, msgSeed
+}
+
 type compiledLabels struct {
-	fieldLabels []string
-	fieldValues []LabelValueFunc
-	enumLabels  []string
-	enumValues  []LabelValueFunc
+	methodLabels []string
+	methodValues []LabelValueFunc
+	fieldLabels  []string
+	fieldValues  []LabelValueFunc
+	enumLabels   []string
+	enumValues   []LabelValueFunc
 }
 
 func (s LabelSet) compile() compiledLabels {
 	compiled := compiledLabels{
-		fieldLabels: make([]string, 0, len(s.Field)),
-		fieldValues: make([]LabelValueFunc, 0, len(s.Field)),
-		enumLabels:  make([]string, 0, len(s.Enum)),
-		enumValues:  make([]LabelValueFunc, 0, len(s.Enum)),
+		methodLabels: make([]string, 0, len(s.Method)),
+		methodValues: make([]LabelValueFunc, 0, len(s.Method)),
+		fieldLabels:  make([]string, 0, len(s.Field)),
+		fieldValues:  make([]LabelValueFunc, 0, len(s.Field)),
+		enumLabels:   make([]string, 0, len(s.Enum)),
+		enumValues:   make([]LabelValueFunc, 0, len(s.Enum)),
+	}
+	for _, label := range s.Method {
+		compiled.methodLabels = append(compiled.methodLabels, label.Name)
+		compiled.methodValues = append(compiled.methodValues, label.Value)
 	}
 	for _, label := range s.Field {
 		compiled.fieldLabels = append(compiled.fieldLabels, label.Name)

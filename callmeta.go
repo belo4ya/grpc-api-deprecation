@@ -5,16 +5,16 @@ import (
 	"google.golang.org/grpc"
 )
 
-type callMeta struct {
+type CallMeta struct {
 	FullMethod string
 	Type       string
 	Service    string
 	Method     string
 }
 
-func newCallMeta(fullMethod string, streamInfo *grpc.StreamServerInfo) callMeta {
+func newCallMeta(fullMethod string, streamInfo *grpc.StreamServerInfo) CallMeta {
 	meta := interceptors.NewServerCallMeta(fullMethod, streamInfo, nil)
-	return callMeta{
+	return CallMeta{
 		FullMethod: fullMethod,
 		Type:       string(meta.Typ),
 		Service:    meta.Service,

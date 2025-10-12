@@ -30,7 +30,7 @@ func (p *evalPlan) Append(eval evaluator) {
 
 func (p *evalPlan) EvalMessage(
 	msg protoreflect.Message,
-	meta callMeta,
+	meta CallMeta,
 	onDeprecatedField onDeprecatedFieldFunc,
 	onDeprecatedEnum onDeprecatedEnumFunc,
 ) {

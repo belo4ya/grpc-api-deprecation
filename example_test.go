@@ -1,0 +1,3 @@
+package apideprecation
+
+func Example() {}
