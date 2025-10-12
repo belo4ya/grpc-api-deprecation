@@ -64,6 +64,11 @@ func WithMessageDescriptors(descriptors ...protoreflect.MessageDescriptor) Optio
 	}
 }
 
+//func WithPrewarm(server reflection.ServiceInfoProvider) Option {
+//	// TODO: syntax sugar, which will be more useful than WithMessageDescriptors in most cases
+//	panic("implement me")
+//}
+
 // WithCounterOptions sets counter options.
 // Notice: This API is EXPERIMENTAL and may be changed or removed in a later release.
 func WithCounterOptions(opts ...CounterOption) Option {
