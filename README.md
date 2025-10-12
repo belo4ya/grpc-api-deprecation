@@ -9,6 +9,14 @@
 
 🎯 The goal of the project TODO...
 
+## 🚀 Install
+
+```sh
+go get -u github.com/belo4ya/grpc-api-deprecation
+```
+
+**Compatibility:** Go ≥ 1.24
+
 ## ✨ Features
 
 - 🔍 Detects `deprecated = true` flags on services, methods, fields, and enum
@@ -28,20 +36,16 @@
 
 Three counters are exported; all use the base labels `grpc_type`, `grpc_service`, and `grpc_method`:
 
-| Name                                                             | Additional labels                                           | Description                                                                                    |
-|------------------------------------------------------------------|-------------------------------------------------------------|------------------------------------------------------------------------------------------------|
-| `grpc_deprecated_method_used_total`                              | *(defaults + extra method labels)*                          | Deprecated RPC method was invoked (method or service marked deprecated).                       |
-| `grpc_deprecated_field_used_total`                               | `field`, `field_presence`, *(extra field labels)*           | Deprecated field with `deprecated = true` was populated. Presence is `explicit` or `implicit`. |
-| `grpc_deprecated_enum_used_total`                                | `field`, `enum_value`, `enum_number`, *(extra enum labels)* | Deprecated enum value was observed in the request payload.                                     |
-| `grpc_deprecated_field_usage_hit_max_items_per_collection_total` | `field`, `collection_type`, `max_items`                     | Scanner bailed out after hitting the collection safety cap.                                    |
+```text
+# Deprecated RPC method was invoked (method or service marked deprecated).
+grpc_deprecated_method_used_total{grpc_type, grpc_service, grpc_method, ...}
 
-## 🚀 Install
+# Deprecated field with `deprecated = true` was populated. Presence is `explicit` or `implicit`.
+grpc_deprecated_field_used_total{grpc_type, grpc_service, grpc_method, field, field_presence, ...}
 
-```sh
-go get -u github.com/belo4ya/grpc-api-deprecation
+# Deprecated enum value was observed in the request payload.   
+grpc_deprecated_enum_used_total{grpc_type, grpc_service, grpc_method, field, enum_value, enum_number, ...}
 ```
-
-**Compatibility:** Go ≥ 1.24
 
 ## 💡 Usage
 
