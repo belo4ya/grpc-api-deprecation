@@ -4,7 +4,7 @@
 ![go version](https://img.shields.io/badge/-%E2%89%A51.24-%23027d9c?logo=go&logoColor=white&labelColor=%23555)
 [![go doc](https://godoc.org/github.com/belo4ya/grpc-api-deprecation?status.svg)](https://pkg.go.dev/github.com/belo4ya/grpc-api-deprecation)
 [![go report](https://goreportcard.com/badge/github.com/belo4ya/grpc-api-deprecation)](https://goreportcard.com/report/github.com/belo4ya/grpc-api-deprecation)
-[![codecov](https://codecov.io/gh/belo4ya/grpc-api-deprecation/graph/badge.svg?token=GQZRP94G21)](https://codecov.io/gh/belo4ya/grpc-api-deprecation)
+[![codecov](https://codecov.io/gh/belo4ya/grpc-api-deprecation/graph/badge.svg?token=BEHM2M7SPI)](https://codecov.io/gh/belo4ya/grpc-api-deprecation)
 [![license](https://img.shields.io/github/license/belo4ya/grpc-api-deprecation)](./LICENSE)
 
 🎯 The goal of the project TODO...

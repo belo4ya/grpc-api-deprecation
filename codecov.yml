@@ -1,3 +1,6 @@
 comment: false
 ignore:
   - "**/*.pb.go"
+coverage:
+  round: "nearest"
+  range: "70..100"
